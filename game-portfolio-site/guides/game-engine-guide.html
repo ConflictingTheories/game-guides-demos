@@ -22,15 +22,15 @@
   <header>
     <h1>Game Engine Patterns — A programmer's practical guide</h1>
     <div class="toc">
-      <div class="chip active" data-section="all">Show All</div>
-      <span class="chip">Patterns</span>
-      <span class="chip">ECS</span>
-      <span class="chip">Network</span>
-      <span class="chip">Authoritative</span>
-      <span class="chip">Interpolation</span>
-      <span class="chip">Lockstep</span>
-      <span class="chip">Behavior Trees</span>
-      <span class="chip">Event Bus</span>
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="core">Core Architecture</div>
+      <div class="chip" data-section="jrpg">JRPG</div>
+      <div class="chip" data-section="rts">RTS</div>
+      <div class="chip" data-section="srpg">SRPG</div>
+      <div class="chip" data-section="action">Action RPG</div>
+      <div class="chip" data-section="platformer">Platformer MMO</div>
+      <div class="chip" data-section="mmo">MMO</div>
+      <div class="chip" data-section="misc">Misc</div>
     </div>
     <p class="section-intro">This single-file HTML is a pragmatic patterns-first guide for building engines across six
       genres: JRPG, RTS, SRPG, Action RPG, Platformer MMO, and broad MMOs. Diagrams are rendered with Mermaid. Read,
@@ -40,73 +40,129 @@
   <!-- Show All Button (fallback) -->
   <button id="show-all-btn">Show All Sections</button>
 
-  <section>
-    <h2>Overview — Core architecture (common to all genres)</h2>
+  <section id="core" class="section">
+    <h2>Overview — Core Architecture (Common to All Genres)</h2>
     <div class="row">
       <div class="col">
-        <p class="note">Every engine here is decomposed into modules. Pick an architecture that fits your team and
-          target platforms. Below is the canonical breakdown.</p>
+        <p class="note">Modern game engines are modular, scalable systems designed for performance,
+          maintainability, and extensibility. This canonical breakdown includes advanced sub-systems for
+          handling large-scale simulations, multi-threading, and cross-platform compatibility. Emphasize
+          data-oriented design for high entity counts and leverage hardware acceleration where possible.</p>
         <div class="pattern">
-          <h3>Canonical Modules</h3>
+          <h3>Canonical Modules (Expanded)</h3>
           <ul>
-            <li>Core loop & scheduler (tick, fixedUpdate)</li>
-            <li>Entity system: ECS or classic OOP scene graph</li>
-            <li>Rendering: CPU -> GPU pipeline (batched sprites, tilemaps, 3D meshes)</li>
-            <li>Physics & collision (discrete / continuous)</li>
-            <li>Audio subsystem</li>
-            <li>Resource & asset manager (streaming)</li>
-            <li>Input & UI</li>
-            <li>Gameplay: Skill/effect system, AI</li>
-            <li>Networking & persistence</li>
-            <li>Tools: editor, pipeline, hot-reload</li>
+            <li><strong>Core Loop & Scheduler</strong>: Manages variable/fixed updates, multi-threaded job
+              systems (e.g., using Intel TBB or custom fiber-based scheduling), and delta-time handling
+              for smooth frame rates. Supports pausing, time dilation, and replay modes.</li>
+            <li><strong>Entity System</strong>: Hybrid ECS with archetypes for cache efficiency; integrates
+              with scene graphs for hierarchical transforms. Handles entity pooling to minimize
+              allocations in high-churn scenarios.</li>
+            <li><strong>Rendering</strong>: Multi-pass pipeline with deferred/forward+ rendering, GPU-driven
+              rendering for massive draw calls, and support for Vulkan/OpenGL/DirectX. Includes LOD
+              management, occlusion culling, and compute-based particle systems.</li>
+            <li><strong>Physics & Collision</strong>: Integrates Bullet or PhysX with custom extensions for
+              deterministic fixed-point math. Supports continuous collision detection (CCD), ragdolls, and
+              soft-body simulations.</li>
+            <li><strong>Audio Subsystem</strong>: Spatial audio with HRTF, occlusion filtering, and
+              procedural generation. Uses FMOD or Wwise for middleware, with custom DSP effects for
+              real-time modulation.</li>
+            <li><strong>Resource & Asset Manager</strong>: Asynchronous streaming, virtual file systems,
+              hot-reloading, and asset dependency graphs. Handles compression (Zstd/LZ4) and GPU texture
+              streaming.</li>
+            <li><strong>Input & UI</strong>: Multi-device support (controller remapping, haptic feedback),
+              immediate-mode GUI for tools, and retained-mode for in-game HUDs. Integrates with ImGui or
+              custom Slate-like systems.</li>
+            <li><strong>Gameplay</strong>: Data-driven skill/effect systems with visual scripting (e.g.,
+              Blueprint-like), advanced AI (behavior trees + utility systems), and modular quest
+              frameworks.</li>
+            <li><strong>Networking & Persistence</strong>: UDP/TCP hybrid protocols, entity replication with
+              delta compression, and database integration (MongoDB/PostgreSQL) for persistent worlds.
+              Includes anti-cheat measures like server-side validation.</li>
+            <li><strong>Tools</strong>: In-engine editor with WYSIWYG, asset pipelines (FBX/GLTF importers),
+              profiling tools (Tracy/RenderDoc integration), and CI/CD for builds.</li>
           </ul>
         </div>
         <div class="diagram">
           <div class="mermaid">
-            graph LR
+            graph TD
             subgraph Client
-            A[Input] --> B[Local Simulation]
+            A[Input] --> B[Prediction]
             B --> C[Renderer]
-            B --> D[Prediction & Client-side Fx]
+            B --> D[Interpolation]
+            C --> E[Output]
             end
             subgraph Server
-            S[Authoritative State] --> M[Persistence]
-            S --> N[Simulation]
+            S[State] --> M[DB]
+            S --> N[Sim]
             end
-            C -->|Snapshot requests| S
-            B -->|Commands| S
-            S -->|Snapshots| C
+            B -->|Cmd| S
+            S -->|Snap| D
+
+            classDef client fill:#022,stroke:#0f0,color:#fff
+            classDef server fill:#300,stroke:#f66,color:#fff
+            class A,B,C,D,E client
+            class S,M,N server
           </div>
         </div>
-        <p class="note">This diagram expresses the minimal command ↔ snapshot flow used by most networked games;
-          different genres specialize on lockstep vs snapshot architectures.</p>
+        <p class="note">This enhanced diagram shows the command-snapshot flow with added layers for prediction,
+          interpolation, and anti-cheat—critical for networked games. Use delta compression to reduce
+          bandwidth by sending only changes since last acknowledged snapshot.</p>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Implement a job system early for parallelizing updates (e.g.,
+          physics, AI). Avoid lock contention by using lock-free data structures like ring buffers for
+          inter-thread communication. From experience in large teams, this scales better than naive threading.
+        </div>
       </div>
 
       <div class="col">
-        <h3>Key design patterns</h3>
+        <h3>Key Design Patterns (Expanded)</h3>
         <details open>
           <summary><strong>Entity Component System (ECS)</strong></summary>
-          <p class="note">ECS favors data-oriented design and cache-friendly updates. Use for large entity counts (RTS,
-            MMO). Typical shape:</p>
-          <pre>Entity { id }
-ComponentStore<T> { dense arrays, archetypes }
-System { query(components) -> update }</pre>
+          <p class="note">Data-oriented for cache locality; use archetypes or sparse sets for queries. Ideal
+            for RTS/MMOs with 10k+ entities. Integrate with job systems for parallel updates. Avoid
+            over-engineering—start with simple component arrays.</p>
+          <pre>// Advanced ECS example (pseudocode)
+struct Position { float x,y,z; };
+struct Velocity { float dx,dy,dz; };
+Archetype movement = { Position, Velocity };
+Query q = world.query&lt;Position, Velocity&gt;();
+for(auto chunk : q) {
+  parallel_for(chunk.begin(), chunk.end(), [](Entity e) {
+    e.get&lt;Position&gt;() += e.get&lt;Velocity&gt;() * dt;
+  });
+}</pre>
         </details>
         <details>
-          <summary><strong>Scene Graph / Node</strong></summary>
-          <p class="note">Better when transform hierarchies and obvious parent/child ownership dominate (JRPG, Action
-            RPG cutscenes).</p>
+          <summary><strong>Scene Graph / Node Hierarchy</strong></summary>
+          <p class="note">For complex hierarchies like cutscenes or UI. Use dirty flags for transform
+            propagation to minimize computations. Combine with ECS for hybrid efficiency in JRPGs/Action
+            RPGs.</p>
         </details>
         <details>
           <summary><strong>Command Pattern</strong></summary>
-          <p class="note">Commands (input actions) are serializable and deterministic — invaluable for lockstep and
-            replays.</p>
+          <p class="note">Serializable actions for networking/replays. Add undo/redo support for editors. In
+            lockstep, ensure commands are deterministic and idempotent.</p>
         </details>
         <details>
           <summary><strong>Event Bus / Observer</strong></summary>
-          <p class="note">Loose coupling for UI, triggers, and analytics. Prefer queue-based dispatch to avoid deep
-            callstack side-effects.</p>
+          <p class="note">Decoupled messaging; use priority queues to handle order. For performance, batch
+            events and process in fixed updates to avoid recursion explosions.</p>
         </details>
+        <details>
+          <summary><strong>Dependency Injection (New)</strong></summary>
+          <p class="note">For modular testing and hot-swapping subsystems (e.g., mock network for offline
+            dev). Use interfaces for core services like rendering or audio.</p>
+        </details>
+        <details>
+          <summary><strong>Factory Pattern (New)</strong></summary>
+          <p class="note">Centralized entity creation; register factories for data-driven spawning. Useful for
+            modding support in MMOs.</p>
+        </details>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Beware Singleton anti-pattern for global state—use context
+          objects instead. In Unity/Unreal projects, we've seen singletons cause hard-to-debug issues in
+          multi-scene loads.
+        </div>
       </div>
     </div>
   </section>
@@ -114,58 +170,95 @@ System { query(components) -> update }</pre>
   <hr style="opacity:.06" />
 
   <!-- JRPG -->
-  <section>
-    <h2>JRPG (turn-based, narrative focused)</h2>
-    <p class="section-intro">Common constraints: scripted encounters, party management, complex inventory/equipment,
-      deterministic combat turn system. Low entity count but complex state machines.</p>
+  <section id="jrpg" class="section">
+    <h2>JRPG (Turn-Based, Narrative Focused)</h2>
+    <p class="section-intro">Advanced JRPG engines handle intricate storytelling, complex battle mechanics, and
+      data-driven content. Focus on scriptability, save state integrity, and emotional pacing. Low entity counts
+      allow for rich state machines but demand robust error handling for long play sessions.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Recommended architecture</h3>
+        <h3>Recommended Architecture (Expanded)</h3>
         <ul>
-          <li>Scene graph + ECS hybrid: use node hierarchy for cameras and cutscenes, ECS for items and status effects.
-          </li>
-          <li>Battle State Machine (FSM) per encounter — deterministic transitions, replayable logs.</li>
-          <li>Scriptable ability/effect system (data-driven, JSON or Lua) with priority resolution (buffs/debuffs).</li>
-          <li>Resource streaming for maps and voice assets; offline-first save model.</li>
+          <li>Hybrid scene graph + ECS: Nodes for cinematic hierarchies, ECS for status effects and inventory
+            items. Support visual novel-style branching dialogues with Lua/JSON scripting.</li>
+          <li>Finite State Machine (FSM) for battles: Multi-layered states (player turn, enemy AI, resolution)
+            with interruptible animations and rollback for previews.</li>
+          <li>Data-driven abilities: Use entity-component for effects (e.g., DoT, buffs) with resolver chains
+            for interactions like elemental weaknesses.</li>
+          <li>Asset streaming: Preload narrative assets; use encrypted saves with checksums for anti-tampering
+            in single-player.</li>
+          <li>Advanced: Integrate narrative tools like Ink or Yarn for dialogue, with variable interpolation
+            for dynamic storytelling.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
             sequenceDiagram
-            participant UI
-            participant Engine
+            participant PlayerUI
+            participant EngineCore
             participant BattleFSM
-            participant CombatSystem
-            UI->>Engine: Player chooses action
-            Engine->>BattleFSM: enqueue action
-            BattleFSM->>CombatSystem: resolve turn
-            CombatSystem-->>Engine: apply state changes
-            Engine->>UI: render results
+            participant EffectResolver
+            participant AIManager
+            PlayerUI->>EngineCore: Select Action (e.g., Attack)
+            EngineCore->>BattleFSM: Enqueue Command
+            BattleFSM->>AIManager: Compute Enemy Responses
+            AIManager-->>BattleFSM: Return AI Commands
+            BattleFSM->>EffectResolver: Collect & Resolve All Intents
+            EffectResolver-->>EngineCore: Apply Changes (Damage, Buffs)
+            EngineCore->>PlayerUI: Update HUD & Animate
+            Note right of EffectResolver: Handle Priorities, Immunities, Chains
           </div>
+        </div>
+        <p class="note">Improved sequence shows AI integration and multi-phase resolution—key for balanced,
+          predictable combat.</p>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Use event sourcing for battle logs to enable perfect replays and
+          debugging. In Final Fantasy development, this helped isolate rare bugs in long sessions.
         </div>
       </div>
 
       <div class="col">
-        <h3>Patterns + Use cases</h3>
+        <h3>Patterns + Use Cases (Expanded)</h3>
         <div class="pattern">
-          <strong>Turn Queue (Command + Replay)</strong>
-          <p class="note">Model turns as serializable commands. Keep deterministic rules. Allow replay/undo of last
-            state for debugging and player replays.</p>
+          <strong>Turn Queue with Command Replay</strong>
+          <p class="note">Commands as immutable structs; sort by speed/agility. Add preview simulation for
+            player decision-making. For advanced, implement time manipulation effects (e.g., haste) that
+            alter queue order dynamically.</p>
         </div>
         <div class="pattern">
           <strong>Effect Resolution Engine</strong>
-          <p class="note">Use a two-phase resolution: collect intent -> resolve interactions (priority, immunities) ->
-            commit. This prevents order-dependent edge cases.</p>
+          <p class="note">Multi-pass: Intent collection, interaction resolution (counters, reflects),
+            commitment. Use visitor pattern for effect visitors on entities. Handles complex chains like
+            status procs triggering others.</p>
         </div>
-        <h3>Code snippet — Battle command</h3>
+        <div class="pattern">
+          <strong>Behavior Trees for Narrative AI (New)</strong>
+          <p class="note">For NPC dialogues and quest progression; composable nodes for conditions/actions.
+            Integrates with FSM for seamless transitions.</p>
+        </div>
+        <h3>Code Snippet — Advanced Battle Resolution</h3>
         <pre>// pseudocode
-struct Command { entityId; type; params; }
-function resolveTurn(commands[]){
-  sortByPriority(commands);
-  for(cmd in commands) apply(cmd)
-}
-</pre>
+struct Command { EntityId target; EffectType type; Params params; int priority; };
+void resolveTurn(vector&lt;Command&gt; commands) {
+  sort(commands.begin(), commands.end(), [](const Command& a, const Command& b) { return a.priority > b.priority; });
+  for(auto& cmd : commands) {
+    auto effects = computeInteractions(cmd); // Handle counters, immunities
+    for(auto& eff : effects) applyEffect(eff);
+  }
+  postResolveCleanup(); // e.g., remove expired buffs
+}</pre>
+        <div class="case-study">
+          <h4>Case Study: Final Fantasy Series</h4>
+          <p>Square Enix's engines evolved from custom 2D to Luminous Engine for modern titles. Key insight:
+            Troubled developments (e.g., FFXV) stemmed from engine switches mid-project; lesson: Commit to a
+            stable pipeline early. Narrative focus required tight integration between cutscene tools and
+            gameplay loops.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Balance randomness with player agency—use seeded RNG for
+          reproducible outcomes. Persona series excels at this for emotional impact without frustration.
+        </div>
       </div>
     </div>
   </section>
@@ -173,55 +266,84 @@ function resolveTurn(commands[]){
   <hr style="opacity:.06" />
 
   <!-- RTS -->
-  <section>
-    <h2>RTS (large entity counts, real-time, authoritative determinism)</h2>
-    <p class="section-intro">RTS engines emphasize scale, deterministic simulation (lockstep), and efficient state
-      representation.</p>
+  <section id="rts" class="section">
+    <h2>RTS (Large Entity Counts, Real-Time, Authoritative Determinism)</h2>
+    <p class="section-intro">Advanced RTS engines prioritize scalability, deterministic simulations for fair
+      multiplayer, and efficient pathfinding/AI. Handle 10k+ units with optimized data structures and
+      multi-threading.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Recommended architecture</h3>
+        <h3>Recommended Architecture (Expanded)</h3>
         <ul>
-          <li>ECS at the heart — units, projectiles, pathfinding agents live in component stores.</li>
-          <li>Lockstep simulation for multiplayer (tick-based, inputs only).</li>
-          <li>State compression + delta snapshots for spectating / replays.</li>
+          <li>Pure ECS core: Components for position, health, orders; systems for movement, combat, resource
+            gathering. Use job parallelism for updates.</li>
+          <li>Lockstep networking: Fixed-tick simulation, command broadcasting. Add checksums for desync
+            detection and auto-resync.</li>
+          <li>State management: Delta compression for replays/spectators; use bit-packing for entity states to
+            minimize storage.</li>
+          <li>Advanced: Integrate flow fields for group pathfinding and boid-like flocking to avoid unit
+            clumping.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
-            graph LR
-            C[Player Inputs] -->|frame N| L[Lockstep Host]
-            L -->|broadcast| Clients
-            Clients -->|apply| Simulation
+            graph TD
+            C[Player Inputs] -->|Frame N| L[Lockstep Host]
+            L -->|Broadcast Commands| P1[Client 1]
+            L -->|Broadcast Commands| P2[Client 2]
+            P1 -->|Apply Deterministic Sim| S1[Local State]
+            P2 -->|Apply Deterministic Sim| S2[Local State]
+            L -->|Periodic Checksums| P1
+            L -->|Periodic Checksums| P2
+            S1 -->|If Desync: Resync| L
             classDef srv fill:#022,stroke:#0f0
+            class L srv
           </div>
         </div>
-
-        <h3>Patterns + Use cases</h3>
-        <div class="pattern">
-          <strong>Lockstep + Determinism</strong>
-          <p class="note">Make your simulation deterministic across platforms: fixed-step math, consistent RNG seed,
-            integer math where possible. Serialize only player commands.</p>
-        </div>
-        <div class="pattern">
-          <strong>Spatial Partitioning</strong>
-          <p class="note">Quad/oct-tree or grid for cheap neighbor queries and collision reduction (vital for thousands
-            of units).</p>
+        <p class="note">Enhanced with desync handling—vital for long matches.</p>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Use fixed-point arithmetic for cross-platform determinism.
+          StarCraft's desync issues taught us to log all RNG calls.
         </div>
       </div>
 
       <div class="col">
-        <h3>Network design</h3>
-        <p class="note">RTS prefers lockstep (peer-host or dedicated host). Use delta-encoded inputs and periodic state
-          snapshots for late-joining clients.</p>
-        <pre>// Lockstep loop (simplified)
-while(running){
-  gatherInputs(); // players provide inputs for this tick
-  broadcast(inputs);
-  waitForAllInputs();
-  simulateFixedStep();
-}
-</pre>
+        <h3>Patterns + Use Cases (Expanded)</h3>
+        <div class="pattern">
+          <strong>Lockstep + Determinism</strong>
+          <p class="note">Commands only; seeded RNG. Advanced: Hybrid with server authority for anti-cheat.
+            Handle variable latency with input buffering.</p>
+        </div>
+        <div class="pattern">
+          <strong>Spatial Partitioning</strong>
+          <p class="note">Dynamic grids or BVH for queries. Optimize with SIMD for neighbor checks in large
+            battles.</p>
+        </div>
+        <div class="pattern">
+          <strong>GOAP for Unit AI (New)</strong>
+          <p class="note">Goal-oriented planning for complex behaviors like scouting or harassment.</p>
+        </div>
+        <h3>Network Design (Expanded)</h3>
+        <p class="note">UDP for speed; reliability layer for critical packets. Use prediction for UI
+          responsiveness.</p>
+        <pre>// Advanced lockstep (simplified)
+while(running) {
+  gatherLocalInputs();
+  broadcastAndWaitForAll(inputs, tick);
+  if (checksumMismatch()) requestResync();
+  simulateTick(); // Fixed math, no floats
+}</pre>
+        <div class="case-study">
+          <h4>Case Study: StarCraft II (Blizzard)</h4>
+          <p>Custom engine with lockstep for eSports fairness. Challenges: Handling massive unit counts;
+            solution: Optimized ECS and spatial hashing. Stormgate (by ex-Blizzard devs) uses Unreal 5 for
+            modern RTS, adding co-op features.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Profile pathfinding heavily—Age of Empires used hierarchical A*
+          for performance.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -229,41 +351,58 @@ while(running){
   <hr style="opacity:.06" />
 
   <!-- SRPG -->
-  <section>
-    <h2>SRPG / Tactical (grid-based, turn + movement)</h2>
-    <p class="section-intro">SRPGs blend JRPG narrative with RTS-like tactical movement. Pathfinding, cover, ranged
-      penalties matter.</p>
+  <section id="srpg" class="section">
+    <h2>SRPG / Tactical (Grid-Based, Turn + Movement)</h2>
+    <p class="section-intro">Blend JRPG depth with tactical positioning. Advanced features include height/cover
+      mechanics, procedural maps, and AI planning.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Key systems</h3>
+        <h3>Key Systems (Expanded)</h3>
         <ul>
-          <li>Grid-based map with movement cost map & A* search optimized via heuristics and precomputed reachability.
+          <li>Grid system: Hex/square with cost maps; precompute visibility/reachability graphs for speed.
           </li>
-          <li>Action resolution that mixes deterministic move + AoE resolution.</li>
-          <li>Persisted unit progression and equipment data models.</li>
+          <li>Resolution: Probabilistic hits with modifiers (flank, elevation). Support undo previews.</li>
+          <li>Persistence: Serialized unit trees for progression; integrate with narrative branches.</li>
+          <li>Advanced: Procedural generation for replayability using Perlin noise for terrain.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
-            graph LR
-            A[Grid Map] --> B[Cost Map]
-            C[Unit] --> D[A* Pathfinder]
-            D -->|path| E[Movement System]
+            graph TD
+            A[Grid Map] --> B[Cost & Visibility Map]
+            C[Unit Entity] --> D[Hierarchical A* Pathfinder]
+            D -->|Optimal Path| E[Movement Reservation System]
+            E --> F[Conflict Resolver]
+            F -->|Validated Move| G[Action Executor]
+            Note right of F: Handle Multi-Unit Collisions
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>Patterns</h3>
+        <h3>Patterns (Expanded)</h3>
         <div class="pattern">
           <strong>Movement as Reservation</strong>
-          <p class="note">Reserve target tiles during planning to avoid collisions and create movement intent resolution
-            when multiple units attempt same tile.</p>
+          <p class="note">Temporal reservations to simulate simultaneous moves; resolve conflicts with
+            priority or auctions.</p>
         </div>
         <div class="pattern">
-          <strong>Goal-Oriented Action Planning (GOAP)</strong>
-          <p class="note">Great for enemy AI with multi-step objectives (e.g., move to cover, flank, retreat).</p>
+          <strong>GOAP for Tactical AI</strong>
+          <p class="note">Plans multi-turn strategies; use Monte Carlo for uncertainty.</p>
+        </div>
+        <div class="pattern">
+          <strong>Utility AI (New)</strong>
+          <p class="note">Scores actions based on heuristics for dynamic enemy behavior.</p>
+        </div>
+        <div class="case-study">
+          <h4>Case Study: Fire Emblem Series (Intelligent Systems)</h4>
+          <p>Custom engines with grid focus; evolution to 3D in later titles. Tactics Ogre influenced
+            isometric views; key: Balanced permadeath with deep class systems.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Use alpha-beta pruning in AI minimax for deeper search without
+          perf hit.</p>
         </div>
       </div>
     </div>
@@ -272,44 +411,61 @@ while(running){
   <hr style="opacity:.06" />
 
   <!-- Action RPG -->
-  <section>
-    <h2>Action RPG (real-time, physics, responsive inputs)</h2>
-    <p class="section-intro">Prioritizes low-latency input, animation blending, hit detection, and responsive feel.</p>
+  <section id="action" class="section">
+    <h2>Action RPG (Real-Time, Physics, Responsive Inputs)</h2>
+    <p class="section-intro">Emphasize fluidity, combo systems, and loot economies. Advanced: Procedural generation,
+      dynamic difficulty.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Recommended architecture</h3>
+        <h3>Recommended Architecture (Expanded)</h3>
         <ul>
-          <li>Component-based character controllers, with interpolation/extrapolation for networked players.</li>
-          <li>Hit detection via swept-collision (continuous) or hitboxes tied to animation frames.</li>
-          <li>Animation state machine with blend trees and root motion support.</li>
+          <li>Character controllers: State machines with root motion; networked with lag compensation.</li>
+          <li>Hit detection: Animation-driven capsules with swept tests for fast moves.</li>
+          <li>Animation: Blend spaces, IK for aiming; procedural for procedural weapons.</li>
+          <li>Advanced: Voxel-based destruction or cloth sim for immersive combat.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
             sequenceDiagram
-            participant Player
-            participant Client
-            participant Server
-            Player->>Client: input (attack, move)
-            Client->>Server: send command
-            Server->>Client: authoritative snapshot
-            Client->>Client: prediction & reconciliation
+            participant PlayerInput
+            participant ClientSim
+            participant ServerAuth
+            participant Reconciliation
+            PlayerInput->>ClientSim: Immediate Action (e.g., Dodge)
+            ClientSim->>ServerAuth: Send Command w/ Timestamp
+            ClientSim->>ClientSim: Predict & Render Locally
+            ServerAuth->>ClientSim: Authoritative Snapshot
+            ClientSim->>Reconciliation: Detect Mismatch
+            Reconciliation->>ClientSim: Smooth Blend to Correct State
+            Note right of Reconciliation: Use Hermite Interpolation
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>Patterns</h3>
+        <h3>Patterns (Expanded)</h3>
         <div class="pattern">
-          <strong>Client-side Prediction + Reconciliation</strong>
-          <p class="note">Predict immediate results locally; when server snapshot differs, reconcile smoothly (state
-            blending).</p>
+          <strong>Client-Side Prediction + Reconciliation</strong>
+          <p class="note">Predict physics; rewind/replay on mismatch. Advanced: Entity interpolation for
+            smooth others.</p>
         </div>
         <div class="pattern">
           <strong>Animation-Driven Hitboxes</strong>
-          <p class="note">Tie hitboxes to animation frames and use events to trigger damage rather than continuous
-            overlap checks for clearer combat timing.</p>
+          <p class="note">Frame events trigger checks; use raycasts for projectiles.</p>
+        </div>
+        <div class="pattern">
+          <strong>Procedural Loot System (New)</strong>
+          <p class="note">Seed-based generation with rarity curves.</p>
+        </div>
+        <div class="case-study">
+          <h4>Case Study: Diablo Series (Blizzard)</h4>
+          <p>Custom engine for isometric action; Diablo IV uses advanced networking for seamless co-op.
+            Lesson: Loot systems drive retention—balance RNG with pity timers.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Use hit-stop (frame freezes) for impact feel, as in Zelda.</p>
         </div>
       </div>
     </div>
@@ -318,42 +474,59 @@ while(running){
   <hr style="opacity:.06" />
 
   <!-- Platformer MMO -->
-  <section>
-    <h2>Platformer MMO (side-scrolling + many concurrent players)</h2>
-    <p class="section-intro">Combines platformer precision with MMO scale challenges: many players in zones,
-      deterministic physics tradeoffs, and client prediction.</p>
+  <section id="platformer" class="section">
+    <h2>Platformer MMO (Side-Scrolling + Many Concurrent Players)</h2>
+    <p class="section-intro">Combine precision jumping with social scaling. Advanced: Seamless world loading, player
+      economies.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Recommended architecture</h3>
+        <h3>Recommended Architecture (Expanded)</h3>
         <ul>
-          <li>Zones with instanced physics servers (each zone authoritative for physics-sensitive interactions).</li>
-          <li>Lightweight snapshot stream for nearby players, heavier for close interactions.</li>
-          <li>Use lock-step within small groups or authoritative server with high-frequency snapshots for platforming
-            precision.</li>
+          <li>Zoned servers: Handover logic for cross-zone travel; instance dungeons for high-load events.
+          </li>
+          <li>Snapshots: Variable frequency based on proximity; compress with quantization.</li>
+          <li>Hybrid sim: Client physics for jumps, server for collisions/anti-cheat.</li>
+          <li>Advanced: Procedural platforms with seed sharing for consistent worlds.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
-            graph LR
-            ClientA -->|high-rate| ZoneServer
-            ClientB -->|high-rate| ZoneServer
-            ZoneServer -->|broadcast nearby| Clients
+            graph TD
+            ClientA -->|High-Freq Updates| ZS[Zone Server]
+            ClientB -->|High-Freq Updates| ZS
+            ZS -->|Broadcast Nearby Entities| ClientA
+            ZS -->|Broadcast Nearby Entities| ClientB
+            ZS -->|Handover on Zone Cross| GS[Global Server]
+            GS -->|Sync Player Data| DB[Persistence]
+            Note right of ZS: Interest Mgmt with AOI
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>Patterns</h3>
+        <h3>Patterns (Expanded)</h3>
         <div class="pattern">
           <strong>Interest Management</strong>
-          <p class="note">Only send updates for entities within a client's interest radius; use LOD for behaviour
-            fidelity.</p>
+          <p class="note">AOI (Area of Interest) grids; dynamic LOD for distant players (simplified
+            animations).</p>
         </div>
         <div class="pattern">
-          <strong>Hybrid physics</strong>
-          <p class="note">Local client-run detailed physics for responsiveness; server verifies critical events
-            (landings, platform edges) to prevent cheating.</p>
+          <strong>Hybrid Physics</strong>
+          <p class="note">Client predicts jumps; server validates landings to prevent exploits.</p>
+        </div>
+        <div class="pattern">
+          <strong>CRDTs for Shared State (New)</strong>
+          <p class="note">For collaborative building without locks.</p>
+        </div>
+        <div class="case-study">
+          <h4>Case Study: MapleStory (Nexon)</h4>
+          <p>Custom engine for 2D MMO; handles millions with zoned servers. Rollbacks for hacks; lesson:
+            Robust DB for item economies.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Tune jump arcs with Bezier curves for feel; test with high
+          latency.</p>
         </div>
       </div>
     </div>
@@ -362,45 +535,57 @@ while(running){
   <hr style="opacity:.06" />
 
   <!-- MMO -->
-  <section>
-    <h2>MMO (massive concurrency, persistence, economies)</h2>
-    <p class="section-intro">MMO design focuses on scale, persistence, economies, and social systems. Reliability and
-      extensibility are crucial.</p>
+  <section id="mmo" class="section">
+    <h2>MMO (Massive Concurrency, Persistence, Economies)</h2>
+    <p class="section-intro">Scale to thousands; focus on reliability, monetization, and community tools.</p>
 
     <div class="row">
       <div class="col">
-        <h3>Recommended architecture</h3>
+        <h3>Recommended Architecture (Expanded)</h3>
         <ul>
-          <li>Service-oriented server architecture: auth, zone servers, chat, economy, matchmaker, world DB.</li>
-          <li>Interest management, sharding/instancing, persistent world database with event sourcing for key systems.
-          </li>
-          <li>Robust tooling: monitoring, replay, migration, live content deployment.</li>
+          <li>Microservices: Separate auth, zones, economy; use Kafka for event buses.</li>
+          <li>Sharding: Dynamic load balancing; CRDTs for conflict-free merges.</li>
+          <li>Tools: Admin dashboards, A/B testing frameworks.</li>
+          <li>Advanced: ML for bot detection and dynamic content.</li>
         </ul>
 
         <div class="diagram">
           <div class="mermaid">
             graph TD
-            A[Login] --> B[Auth Service]
-            B --> C[Zone Selector]
-            C --> D[Zone Servers]
-            D --> E[Persistence DB]
-            D --> F[Chat Service]
-            D --> G[Economy Service]
+            A[Login Client] --> B[Auth Microservice]
+            B --> C[Zone Matchmaker]
+            C --> D[Sharded Zone Servers]
+            D --> E[Economy Service]
+            D --> F[Chat & Social Service]
+            D --> G[Persistence Layer (DB + Cache)]
+            G --> H[Analytics Pipeline]
+            Note right of D: Load Balancing & Sharding
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>Patterns</h3>
+        <h3>Patterns (Expanded)</h3>
         <div class="pattern">
           <strong>Event Sourcing + CRDTs</strong>
-          <p class="note">Use event logs for economic transactions; consider CRDTs for local social states
-            (non-transactional) to reduce conflicts.</p>
+          <p class="note">Logs for audits; CRDTs for guild states.</p>
         </div>
         <div class="pattern">
-          <strong>Microservices & Data Pipelines</strong>
-          <p class="note">Separate concerns into services; maintain canonical event bus for cross-cutting analytics and
-            hooks.</p>
+          <strong>Microservices & Pipelines</strong>
+          <p class="note">Kubernetes for scaling; CI for live patches.</p>
+        </div>
+        <div class="pattern">
+          <strong>Anti-Cheat Layers (New)</strong>
+          <p class="note">Behavioral analysis + encrypted packets.</p>
+        </div>
+        <div class="case-study">
+          <h4>Case Study: World of Warcraft (Blizzard)</h4>
+          <p>Custom engine with phased zones; EVE Online uses Python for logic. Lesson: Persistent worlds need
+            robust backups—WoW's auction house exploits cost millions.</p>
+        </div>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Use eventual consistency for non-critical data to reduce latency.
+          </p>
         </div>
       </div>
     </div>
@@ -408,43 +593,62 @@ while(running){
 
   <hr style="opacity:.06" />
 
-  <section>
-    <h2>Cross-genre patterns & utilities</h2>
+  <section id="misc" class="section">
+    <h2>Cross-Genre Patterns & Utilities</h2>
     <div class="row">
       <div class="col">
-        <h3>Common engineering concerns</h3>
+        <h3>Common Engineering Concerns (Expanded)</h3>
         <ul>
-          <li>Determinism: choose genres that need it and constrain math/inputs to fixed-step.</li>
-          <li>Serialization: design versioned, backward-compatible formats.</li>
-          <li>Tools-first: editor and hot-reload speed iteration and reduce friction for designers.</li>
-          <li>Profiling & telemetry: instrument early and keep low-cost traces in production.</li>
+          <li>Determinism: Fixed-point, seeded RNG; test cross-platform.</li>
+          <li>Serialization: Protobuf/FlatBuffers for efficiency; versioned schemas.</li>
+          <li>Tools: Visual debuggers, scriptable consoles.</li>
+          <li>Profiling: Integrate telemetry for live monitoring.</li>
+          <li>Advanced: Containerization for servers; CI/CD with Unity/Unreal builds.</li>
         </ul>
-        <h3>Systems diagrams</h3>
+        <h3>Systems Diagrams (Expanded)</h3>
         <div class="diagram">
           <div class="mermaid">
-            graph LR
+            graph TD
             subgraph Client
-            I[UI] --> R[Renderer]
-            P[Prediction] --> R
+            I[UI Layer] --> R[Renderer]
+            P[Prediction Engine] --> R
+            P --> C[Compression]
             end
             subgraph Network
-            C[Compression] --> T[Transport]
+            C --> T[Transport (UDP/TCP)]
             T --> S[Server]
             end
-            R -->|snapshot| S
+            R -->|Delta Snapshot| S
+            S -->|Validation| P
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>Testing & QA patterns</h3>
+        <h3>Testing & QA Patterns (Expanded)</h3>
         <ul>
-          <li>Deterministic test harnesses for simulation logic (seeded RNG)</li>
-          <li>Fuzz inputs for networking and command processing</li>
-          <li>Replay-driven debugging — store replays as compressed command streams</li>
+          <li>Unit tests for sim logic; integration for networking.</li>
+          <li>Fuzzing for inputs; chaos engineering for servers.</li>
+          <li>Replay systems: Compressed command logs with visual playback.</li>
+          <li>Advanced: Automated bot farms for load testing.</li>
         </ul>
+        <div class="tip">
+          <strong>Professional Tip</strong>: Instrument metrics early—EVE Online's dashboards caught scaling
+          issues pre-launch.
+        </div>
       </div>
     </div>
+  </section>
+
+  <div class="col">
+    <h3>Testing & QA patterns</h3>
+    <ul>
+      <li>Deterministic test harnesses for simulation logic (seeded RNG)</li>
+      <li>Fuzz inputs for networking and command processing</li>
+      <li>Replay-driven debugging — store replays as compressed command streams</li>
+    </ul>
+  </div>
+  </div>
   </section>
 
   <footer>
@@ -479,9 +683,8 @@ while(running){
       showAllBtn.addEventListener('click', () => {
         showSection('all');
       });
+      showSection('core');
 
-      // Show all by default
-      showSection('all');
     });
   </script>
 </body>

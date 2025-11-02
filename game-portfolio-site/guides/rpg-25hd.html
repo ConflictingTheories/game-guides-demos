@@ -18,7 +18,7 @@
   <script src="/lib/mermaid.min.js"></script>
   <script>
     mermaid.initialize({
-      startOnLoad: true: true,
+      startOnLoad: true,
       theme: 'dark',
       securityLevel: 'loose',
       flowchart: { useMaxWidth: true, htmlLabels: true }
@@ -34,8 +34,8 @@
         FPS</strong>.</p>
 
     <div class="toc">
-      <div class="chip active" data-section="all">Show All</div>
-      <div class="chip" data-section="overview">Overview</div>
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
       <div class="chip" data-section="camera">Camera & Projection</div>
       <div class="chip" data-section="tiles">Tilemap & Layers</div>
       <div class="chip" data-section="sprites">Sprites & Billboarding</div>
@@ -313,7 +313,6 @@ for (texture in spriteAtlas) {
 
       chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
       showAllBtn.addEventListener('click', () => showSection('all'));
-      showSection('all');
     });
   </script>
 
