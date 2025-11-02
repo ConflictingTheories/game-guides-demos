@@ -5,185 +5,52 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Advanced Game Engine Patterns — JRPG · RTS · SRPG · Action RPG · Platformer MMO · MMO</title>
-    <style>
-        :root {
-            --bg: #000;
-            --fg: #e6e6e6;
-            --accent: #7fffd4;
-            --muted: #9aa0a6;
-            --panel: #071018;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
-        }
-
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            background: var(--bg);
-            color: var(--fg)
-        }
-
-        /* CAD grid background: subtle white lines */
-        body {
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 40px 40px, 40px 40px;
-            -webkit-font-smoothing: antialiased;
-            line-height: 1.5;
-            padding: 28px 36px;
-        }
-
-        header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            padding-bottom: 12px;
-            margin-bottom: 18px
-        }
-
-        h1 {
-            font-size: 20px;
-            margin: 0 0 6px 0
-        }
-
-        h2 {
-            font-size: 16px;
-            margin: 14px 0 6px 0
-        }
-
-        h3 {
-            font-size: 13px;
-            margin: 10px 0
-        }
-
-        p {
-            color: var(--muted);
-            margin: 8px 0
-        }
-
-        .row {
-            display: flex;
-            gap: 18px
-        }
-
-        .col {
-            flex: 1;
-            min-width: 260px;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent);
-            padding: 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.04)
-        }
-
-        code,
-        pre {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 6px;
-            border-radius: 6px;
-            color: var(--fg);
-            font-size: 12px
-        }
-
-        pre {
-            overflow: auto;
-            padding: 12px
-        }
-
-        .pattern {
-            border-left: 3px solid rgba(127, 255, 212, 0.12);
-            padding-left: 10px;
-            margin: 8px 0
-        }
-
-        .chip {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            color: var(--muted);
-            font-size: 11px;
-            margin-right: 6px
-        }
-
-        footer {
-            margin-top: 22px;
-            border-top: 1px solid rgba(255, 255, 255, 0.04);
-            padding-top: 12px;
-            color: var(--muted);
-            font-size: 12px
-        }
-
-        .toc {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px
-        }
-
-        details {
-            margin: 8px 0
-        }
-
-        /* responsive */
-        @media (max-width:900px) {
-            .row {
-                flex-direction: column
-            }
-        }
-
-        .diagram {
-            background: transparent;
-            padding: 8px;
-            border: 1px dashed rgba(255, 255, 255, 0.03);
-            border-radius: 6px;
-            margin: 8px 0
-        }
-
-        .note {
-            color: var(--muted);
-            font-size: 13px
-        }
-
-        .section-intro {
-            color: var(--muted);
-            font-size: 13px;
-            margin-bottom: 6px
-        }
-
-        .case-study {
-            margin-top: 12px;
-            padding: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.01)
-        }
-
-        .tip {
-            border-left: 3px solid var(--accent);
-            padding-left: 10px;
-            margin: 8px 0;
-            color: var(--fg)
-        }
-    </style>
+    <link rel="stylesheet" href="./guide-style.css" />
     <!-- mermaid -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+    <script src="/lib/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+    </script>
 </head>
 
 <body>
     <header>
-        <h1>Advanced Game Engine Patterns — A Programmer's Comprehensive Guide</h1>
+        <h1>Part I - Advanced Game Engine Patterns</h1>
+        <p class="note">Click any topic below to view that section. Click <strong>Show All</strong> to see everything.
+        </p>
+
         <div class="toc">
-            <span class="chip">Patterns</span>
-            <span class="chip">ECS</span>
-            <span class="chip">Network</span>
-            <span class="chip">Authoritative</span>
-            <span class="chip">Interpolation</span>
-            <span class="chip">Lockstep</span>
-            <span class="chip">Behavior Trees</span>
-            <span class="chip">Event Bus</span>
-            <span class="chip">GOAP</span>
-            <span class="chip">CRDTs</span>
-            <span class="chip">PBR</span>
-            <span class="chip">Compute Shaders</span>
+            <div class="chip active" data-section="all">Show All</div>
+            <div class="chip" data-section="core">Core Architecture</div>
+            <div class="chip" data-section="jrpg">JRPG</div>
+            <div class="chip" data-section="rts">RTS</div>
+            <div class="chip" data-section="srpg">SRPG</div>
+            <div class="chip" data-section="action">Action RPG</div>
+            <div class="chip" data-section="platformer">Platformer MMO</div>
+            <div class="chip" data-section="mmo">MMO</div>
+            <div class="chip" data-section="graphics">Graphics</div>
+        </div>
+
+        <h1>Advanced Game Engine Patterns</h1>
+        <div class="toc">
+            <div class="chip active" data-section="all">Show All</div>
+            <span class="chip" data-section="patterns">Patterns</span>
+            <span class="chip" data-section="ecs">ECS</span>
+            <span class="chip" data-section="network">Network</span>
+            <span class="chip" data-section="auth">Authoritative</span>
+            <span class="chip" data-section="int">Interpolation</span>
+            <span class="chip" data-section="lock">Lockstep</span>
+            <span class="chip" data-section="behavior">Behavior Trees</span>
+            <span class="chip" data-section="event">Event Bus</span>
+            <span class="chip" data-section="goap">GOAP</span>
+            <span class="chip" data-section="crdt">CRDTs</span>
+            <span class="chip" data-section="pbr">PBR</span>
+            <span class="chip" data-section="computer">Compute Shaders</span>
         </div>
         <p class="section-intro">This single-file HTML is an advanced, patterns-first guide for building sophisticated
             game engines across six genres: JRPG, RTS, SRPG, Action RPG, Platformer MMO, and broad MMOs. Enhanced with
@@ -192,7 +59,10 @@
             Read, copy, and adapt for professional-grade development.</p>
     </header>
 
-    <section>
+    <!-- Show All Button (fallback) -->
+    <button id="show-all-btn">Show All Sections</button>
+
+    <section id="patterns" class="sessions">
         <h2>Overview — Core Architecture (Common to All Genres)</h2>
         <div class="row">
             <div class="col">
@@ -238,14 +108,14 @@
                     <div class="mermaid">
                         graph TD
                         subgraph Client
-                            A[Input] --> B[Prediction]
-                            B --> C[Renderer]
-                            B --> D[Interpolation]
-                            C --> E[Output]
+                        A[Input] --> B[Prediction]
+                        B --> C[Renderer]
+                        B --> D[Interpolation]
+                        C --> E[Output]
                         end
                         subgraph Server
-                            S[State] --> M[DB]
-                            S --> N[Sim]
+                        S[State] --> M[DB]
+                        S --> N[Sim]
                         end
                         B -->|Cmd| S
                         S -->|Snap| D
@@ -322,7 +192,7 @@ for(auto chunk : q) {
     <hr style="opacity:.06" />
 
     <!-- JRPG -->
-    <section>
+    <section id="patterns" class="sessions">
         <h2>JRPG (Turn-Based, Narrative Focused)</h2>
         <p class="section-intro">Advanced JRPG engines handle intricate storytelling, complex battle mechanics, and
             data-driven content. Focus on scriptability, save state integrity, and emotional pacing. Low entity counts
@@ -1048,6 +918,37 @@ gl.drawElementsInstanced(gl.TRIANGLES, indices, gl.UNSIGNED_SHORT, 0, instanceCo
             diagrams and code to your tech stack. If Mermaid fails, check CDN.</p>
         <p>— Happy hacking. Prototype small, iterate fast, scale smart.</p>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chips = document.querySelectorAll('.chip');
+            const sections = document.querySelectorAll('.section');
+            const showAllBtn = document.getElementById('show-all-btn');
+
+            function showSection(id) {
+                sections.forEach(sec => {
+                    sec.classList.toggle('active', id === 'all' || sec.id === id);
+                });
+                chips.forEach(chip => {
+                    chip.classList.toggle('active', chip.dataset.section === id || id === 'all');
+                });
+            }
+
+            chips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const section = chip.dataset.section;
+                    showSection(section);
+                });
+            });
+
+            showAllBtn.addEventListener('click', () => {
+                showSection('all');
+            });
+
+            // Show all by default
+            showSection('all');
+        });
+    </script>
 </body>
 
 </html>

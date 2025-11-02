@@ -42,7 +42,7 @@ class DemosSection {
              <div class="demo-item">
                 <h3>AOE Attack Demo</h3>
                 <p>Spell Area attack demo.</p>
-                <a href="demos/sprite2.html">Play Demo</a>
+                <a href="demos/sprite.html">Play Demo</a>
             </div>
             <div class="demo-item">
                 <h3>Prinny SRPG Demo</h3>

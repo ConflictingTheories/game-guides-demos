@@ -1,62 +1,13 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Disgaea-Style SRPG Engine — WebGL 2.0 & OpenGL C++</title>
-  <style>
-    :root{
-      --bg:#000;
-      --fg:#e6e6e6;
-      --accent:#ff6b9d;
-      --muted:#9aa0a6;
-      --panel:#071018;
-      --hover:#1a1a1a;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg)}
-    body{
-      background-image:
-        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 40px 40px, 40px 40px;
-      -webkit-font-smoothing:antialiased;
-      line-height:1.5;
-      padding:28px 36px;
-    }
-    header{border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:16px;margin-bottom:24px}
-    h1{font-size:22px;margin:0 0 8px 0;font-weight:600}
-    h2{font-size:18px;margin:20px 0 8px 0;color:var(--accent)}
-    h3{font-size:14px;margin:12px 0 6px 0}
-    p{color:var(--muted);margin:8px 0;font-size:14px}
-    .row{display:flex;gap:20px;flex-wrap:wrap}
-    .col{flex:1;min-width:280px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
-    pre{background:rgba(255,255,255,0.02);padding:14px;border-radius:8px;color:var(--fg);font-size:12px;overflow:auto;border:1px solid rgba(255,255,255,0.06)}
-    .chip{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,107,157,0.1);color:var(--accent);font-size:11px;margin:2px 4px 2px 0;cursor:pointer;transition:0.2s}
-    .chip:hover{background:rgba(255,107,157,0.2)}
-    .chip.active{background:var(--accent);color:#000;font-weight:600}
-    .toc{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
-    footer{margin-top:32px;border-top:1px solid rgba(255,255,255,0.04);padding-top:12px;color:var(--muted);font-size:12px}
-    .diagram{background:transparent;padding:12px;border:1px dashed rgba(255,255,255,0.03);border-radius:8px;margin:12px 0}
-    .note{color:var(--muted);font-size:13px}
-    .tip{border-left:3px solid var(--accent);padding-left:12px;margin:12px 0;color:var(--fg);font-size:13px}
-    .section{display:none}
-    .section.active{display:block}
-    #show-all-btn{margin:16px 0;padding:10px 16px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
-    #show-all-btn:hover{opacity:0.9}
-    @media (max-width:900px){.row{flex-direction:column}}
-    table{border-collapse:collapse;width:100%;margin:10px 0}
-    th,td{border:1px solid rgba(255,255,255,0.06);padding:8px;text-align:left}
-    th{background:rgba(255,107,157,0.1)}
-    .disgaea{background:rgba(255,107,157,0.1);border-left:3px solid var(--accent);padding:10px;margin:10px 0}
-    .perf{background:rgba(255,215,0,0.1);border-left:3px solid gold;padding:10px;margin:10px 0}
-  </style>
-</head>
-<body>
-
+  <link rel="stylesheet" href="./guide-style.css" />
   <!-- Mermaid -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script src="/lib/mermaid.min.js"></script>
   <script>
     mermaid.initialize({
       startOnLoad: true,
@@ -65,14 +16,17 @@
       flowchart: { useMaxWidth: true, htmlLabels: true }
     });
   </script>
+</head>
 
+<body>
   <header>
     <h1>Disgaea-Style SRPG Engine — WebGL 2.0 & OpenGL C++</h1>
-    <p class="note">Complete tactical battle system: <strong>grid movement, Geo Panels, lifting/throwing, combo chains, 100+ units, Item World</strong>. Built for <strong>maximum depth and performance</strong>.</p>
+    <p class="note">Complete tactical battle system: <strong>grid movement, Geo Panels, lifting/throwing, combo chains,
+        100+ units, Item World</strong>. Built for <strong>maximum depth and performance</strong>.</p>
 
     <div class="toc">
-      <div class="chip active" data-section="all">Show All</div>
-      <div class="chip" data-section="overview">Overview</div>
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
       <div class="chip" data-section="grid">Grid & Elevation</div>
       <div class="chip" data-section="movement">Movement & Range</div>
       <div class="chip" data-section="geo">Geo Panels & Effects</div>
@@ -91,16 +45,17 @@
     <h2>Overview: Disgaea Battle System</h2>
     <div class="row">
       <div class="col">
-        <div class="disgaea"><strong>Core Loop:</strong> Select unit → Move → Act (Attack, Skill, Lift) → Execute → Next Turn. With <strong>Geo Panels, Towering, Combo, Item World</strong>.</div>
+        <div class="disgaea"><strong>Core Loop:</strong> Select unit → Move → Act (Attack, Skill, Lift) → Execute → Next
+          Turn. With <strong>Geo Panels, Towering, Combo, Item World</strong>.</div>
         <div class="diagram">
           <div class="mermaid">
             graph TD
-              Select[Select Unit] --> Move[Move Phase]
-              Move --> Act[Act Phase]
-              Act --> Execute[Execute]
-              Execute --> Next[Next Unit]
-              classDef core fill:#300,stroke:#f69
-              class Select,Move,Act,Execute core
+            Select[Select Unit] --> Move[Move Phase]
+            Move --> Act[Act Phase]
+            Act --> Execute[Execute]
+            Execute --> Next[Next Unit]
+            classDef core fill:#300,stroke:#f69
+            class Select,Move,Act,Execute core
           </div>
         </div>
       </div>
@@ -136,11 +91,11 @@ Cell grid[WIDTH][DEPTH];</pre>
         <div class="diagram">
           <div class="mermaid">
             graph TD
-              G[Grid Cell] --> H[Height: 0–9]
-              G --> C[Geo Color]
-              G --> E[Geo Effect]
-              G --> U[Unit]
-              H --> Cost[Move Cost]
+            G[Grid Cell] --> H[Height: 0–9]
+            G --> C[Geo Color]
+            G --> E[Geo Effect]
+            G --> U[Unit]
+            H --> Cost[Move Cost]
           </div>
         </div>
       </div>
@@ -183,9 +138,9 @@ glDrawElementsInstanced(GL_TRIANGLES, 6, count);</pre>
         <div class="diagram">
           <div class="mermaid">
             graph LR
-              Unit[Unit] --> Flood[Flood Fill]
-              Flood --> Range[Move Range]
-              Range --> Highlight[Instanced Quads]
+            Unit[Unit] --> Flood[Flood Fill]
+            Flood --> Range[Move Range]
+            Range --> Highlight[Instanced Quads]
           </div>
         </div>
       </div>
@@ -219,10 +174,10 @@ void applyGeo(Unit* u) {
         <div class="diagram">
           <div class="mermaid">
             sequenceDiagram
-              Destroy[Destroy Symbol]
-              Destroy->>Panels: Find Same Color
-              Panels->>Units: Apply Effect
-              Units->>Chain: Bonus Combo!
+            Destroy[Destroy Symbol]
+            Destroy->>Panels: Find Same Color
+            Panels->>Units: Apply Effect
+            Units->>Chain: Bonus Combo!
           </div>
         </div>
       </div>
@@ -261,10 +216,10 @@ void addToTower(Unit* u) {
         <div class="diagram">
           <div class="mermaid">
             graph TD
-              A[Unit A] --> L[Lift]
-              L --> B[Unit B]
-              B --> T[Tower Stack]
-              T --> Throw[Throw Over Gap]
+            A[Unit A] --> L[Lift]
+            L --> B[Unit B]
+            B --> T[Tower Stack]
+            T --> Throw[Throw Over Gap]
           </div>
         </div>
       </div>
@@ -295,9 +250,9 @@ void checkCombo() {
         <div class="diagram">
           <div class="mermaid">
             graph LR
-              A[Attacker] --> Adj[Adjacent Allies]
-              Adj --> Combo[Combo Chain]
-              Combo --> Bonus[Bonus DMG + EXP]
+            A[Attacker] --> Adj[Adjacent Allies]
+            Adj --> Combo[Combo Chain]
+            Combo --> Bonus[Bonus DMG + EXP]
           </div>
         </div>
       </div>
@@ -324,9 +279,9 @@ for (chunk in q) {
         <div class="diagram">
           <div class="mermaid">
             graph TD
-              ECS[ECS World] --> Q[Query Units]
-              Q --> Parallel[Parallel Update]
-              Parallel --> GPU[Instanced Render]
+            ECS[ECS World] --> Q[Query Units]
+            Q --> Parallel[Parallel Update]
+            Parallel --> GPU[Instanced Render]
           </div>
         </div>
       </div>
@@ -356,10 +311,10 @@ Dungeon* generateItemWorld(Item* item) {
         <div class="diagram">
           <div class="mermaid">
             graph TD
-              Item[Item] --> Level[Item Level]
-              Level --> Floors[10x Floors]
-              Floors --> Boss[Floor Boss]
-              Boss --> Reward[Stat Boost]
+            Item[Item] --> Level[Item Level]
+            Level --> Floors[10x Floors]
+            Floors --> Boss[Floor Boss]
+            Boss --> Reward[Stat Boost]
           </div>
         </div>
       </div>
@@ -375,7 +330,8 @@ Dungeon* generateItemWorld(Item* item) {
         <pre>// One draw call per unit type
 glBindVertexArray(unitVAO[type]);
 glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0, unitCount[type]);</pre>
-        <div class="perf"><strong>Key:</strong> Instance buffer: <code>mat4 model, vec4 color, int animFrame</code></div>
+        <div class="perf"><strong>Key:</strong> Instance buffer: <code>mat4 model, vec4 color, int animFrame</code>
+        </div>
       </div>
       <div class="col">
         <h3>Geo Panel Batching</h3>
@@ -384,19 +340,20 @@ for (color in geoColors) {
   bindTexture(geoTexture[color]);
   drawInstanced(geoCells[color]);
 }</pre>
-        <div class="perf"><strong>Target:</strong> < 50 draw calls, < 2 MB upload/frame.</div>
-        <div class="diagram">
-          <div class="mermaid">
-            graph TD
-              Units[100+ Units] --> Instance[Instanced by Type]
-              Geo[Geo Panels] --> Batch[Batch by Color]
-              Batch --> GPU[GPU]
-              classDef fast fill:#050,stroke:#0f0
-              class Instance,Batch fast
-          </div>
+        <div class="perf"><strong>Target:</strong>
+          < 50 draw calls, < 2 MB upload/frame.</div>
+            <div class="diagram">
+              <div class="mermaid">
+                graph TD
+                Units[100+ Units] --> Instance[Instanced by Type]
+                Geo[Geo Panels] --> Batch[Batch by Color]
+                Batch --> GPU[GPU]
+                classDef fast fill:#050,stroke:#0f0
+                class Instance,Batch fast
+              </div>
+            </div>
         </div>
       </div>
-    </div>
   </section>
 
   <footer>
@@ -422,4 +379,5 @@ for (color in geoColors) {
   </script>
 
 </body>
+
 </html>
