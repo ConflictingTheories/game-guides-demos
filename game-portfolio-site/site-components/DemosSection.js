@@ -5,19 +5,49 @@ class DemosSection {
             <h2>Demos</h2>
             <div class="demo-list">
             <div class="demo-item">
+                <h3>CTF Demo</h3>
+                <p>Capture the Flag demo.</p>
+                <a href="demos/ctf.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
+                <h3>MMO Demo</h3>
+                <p>Sample showing Area of Interest across simulated network.</p>
+                <a href="demos/mmo-aoi.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
+                <h3>Shader Demo</h3>
+                <p>Sample Shader Demo.</p>
+                <a href="demos/shader.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
+                <h3>Melee Network Demo</h3>
+                <p>Melee fighting latemcy simulation demo with server authority.</p>
+                <a href="demos/melee.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
+                <h3>Wall Network Demo</h3>
+                <p>Invisible Wall (overshoot) latemcy simulation demo with server authority.</p>
+                <a href="demos/wall-rollback.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
+                <h3>Projectile Network Demo</h3>
+                <p>Shooting latemcy simulation demo with server authority.</p>
+                <a href="demos/projectile-rollback.html">Play Demo</a>
+            </div>
+            <div class="demo-item">
                 <h3>Disgaea Prototype</h3>
                 <p>Advanced WebGL2 SRPG with units, abilities, camera controls.</p>
                 <a href="demos/dis.html">Play Demo</a>
+            </div>
+             <div class="demo-item">
+                <h3>AOE Attack Demo</h3>
+                <p>Spell Area attack demo.</p>
+                <a href="demos/sprite2.html">Play Demo</a>
             </div>
             <div class="demo-item">
                 <h3>Prinny SRPG Demo</h3>
                 <p>Isometric grid demo with movement, lift/throw, geo panels.</p>
                 <a href="demos/prinny.html">Play Demo</a>
-            </div>
-            <div class="demo-item">
-                <h3>Sample WebGL Games</h3>
-                <p>Collection of sample games built with WebGL.</p>
-                <a href="demos/sample-game-webgl/">View Games</a>
             </div>
             <div class="demo-item">
                 <h3>Dark Assembly Demo</h3>
