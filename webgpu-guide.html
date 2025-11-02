@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WebGL → OpenGL C++ → WebGPU: Ultimate Performance Guide</title>
+  <style>
+    :root{
+      --bg:#000;
+      --fg:#e6e6e6;
+      --accent:#7fffd4;
+      --muted:#9aa0a6;
+      --panel:#071018;
+      --hover:#1a1a1a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg)}
+    body{
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px, 40px 40px;
+      -webkit-font-smoothing:antialiased;
+      line-height:1.5;
+      padding:28px 36px;
+    }
+    header{border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:16px;margin-bottom:24px}
+    h1{font-size:22px;margin:0 0 8px 0;font-weight:600}
+    h2{font-size:18px;margin:20px 0 8px 0;color:var(--accent)}
+    h3{font-size:14px;margin:12px 0 6px 0}
+    p{color:var(--muted);margin:8px 0;font-size:14px}
+    .row{display:flex;gap:20px;flex-wrap:wrap}
+    .col{flex:1;min-width:280px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
+    pre{background:rgba(255,255,255,0.02);padding:14px;border-radius:8px;color:var(--fg);font-size:12px;overflow:auto;border:1px solid rgba(255,255,255,0.06)}
+    .chip{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(127,255,212,0.1);color:var(--accent);font-size:11px;margin:2px 4px 2px 0;cursor:pointer;transition:0.2s}
+    .chip:hover{background:rgba(127,255,212,0.2)}
+    .chip.active{background:var(--accent);color:#000;font-weight:600}
+    .toc{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+    footer{margin-top:32px;border-top:1px solid rgba(255,255,255,0.04);padding-top:12px;color:var(--muted);font-size:12px}
+    .diagram{background:transparent;padding:12px;border:1px dashed rgba(255,255,255,0.03);border-radius:8px;margin:12px 0}
+    .note{color:var(--muted);font-size:13px}
+    .tip{border-left:3px solid var(--accent);padding-left:12px;margin:12px 0;color:var(--fg);font-size:13px}
+    .section{display:none}
+    .section.active{display:block}
+    #show-all-btn{margin:16px 0;padding:10px 16px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+    #show-all-btn:hover{opacity:0.9}
+    @media (max-width:900px){.row{flex-direction:column}}
+    table{border-collapse:collapse;width:100%;margin:10px 0}
+    th,td{border:1px solid rgba(255,255,255,0.06);padding:8px;text-align:left}
+    th{background:rgba(127,255,212,0.1)}
+    .perf{background:rgba(255,215,0,0.1);border-left:3px solid gold;padding:10px;margin:10px 0}
+  </style>
+</head>
+<body>
+
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+
+  <header>
+    <h1>WebGL → OpenGL C++ → WebGPU: Ultimate Performance Guide</h1>
+    <p class="note">From legacy WebGL to native OpenGL C++ and cutting-edge WebGPU. This guide covers <strong>maximum performance</strong> across web (WASM) and desktop. Click to filter sections.</p>
+
+    <div class="toc">
+      <div class="chip active" data-section="all">Show All</div>
+      <div class="chip" data-section="webgl">WebGL</div>
+      <div class="chip" data-section="opengl">OpenGL C++</div>
+      <div class="chip" data-section="webgpu">WebGPU</div>
+      <div class="chip" data-section="wasm">WASM & Emscripten</div>
+      <div class="chip" data-section="perf">Performance</div>
+      <div class="chip" data-section="interop">Interop & Migration</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- WEBGL -->
+  <section id="webgl" class="section active">
+    <h2>WebGL: High-Performance JS</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Core Setup</h3>
+        <pre>const gl = canvas.getContext('webgl2', { 
+  antialias: true, 
+  depth: true, 
+  preserveDrawingBuffer: false 
+});
+gl.getExtension('EXT_color_buffer_float');</pre>
+        <div class="perf"><strong>Perf Tip:</strong> Use <code>webgl2</code> + <code>preserveDrawingBuffer: false</code> to avoid CPU readbacks.</div>
+      </div>
+      <div class="col">
+        <h3>Instancing & UBOs</h3>
+        <pre>// WebGL 2: UBOs via extension
+const ubo = gl.createBuffer();
+gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, ubo);
+gl.bufferData(gl.UNIFORM_BUFFER, 64, gl.DYNAMIC_DRAW);</pre>
+        <div class="tip"><strong>Instancing:</strong> <code>ANGLE_instanced_arrays.drawArraysInstancedANGLE()</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPENGL C++ -->
+  <section id="opengl" class="section">
+    <h2>OpenGL C++: Native Maximum Speed</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Core Profile 4.6</h3>
+        <pre>#include &lt;glad/glad.h&gt;
+glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);</pre>
+        <div class="perf"><strong>Perf:</strong> Use <code>GL_ARB_direct_state_access</code> to avoid binding:</div>
+        <pre>glCreateBuffers(1, &vbo);
+glNamedBufferData(vbo, size, data, GL_STATIC_DRAW);</pre>
+      </div>
+      <div class="col">
+        <h3>Bindless Textures</h3>
+        <pre>GLuint64 handle = glGetTextureHandleARB(tex);
+glMakeTextureHandleResidentARB(handle);</pre>
+        <div class="tip">Eliminates texture unit limits. Ideal for 1000+ textures.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WEBGPU -->
+  <section id="webgpu" class="section">
+    <h2>WebGPU: Next-Gen Web Graphics</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Setup & Pipeline</h3>
+        <pre>const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+const pipeline = device.createRenderPipeline({
+  vertex: { module: shaderModule, entryPoint: 'vs_main' },
+  fragment: { module: shaderModule, entryPoint: 'fs_main' },
+  primitive: { topology: 'triangle-list' }
+});</pre>
+        <div class="perf"><strong>Perf:</strong> WebGPU is <strong>explicit</strong> — no hidden state. Use <code>GPUBufferUsage.STORAGE</code> for compute-like rendering.</div>
+      </div>
+      <div class="col">
+        <h3>WGSL vs GLSL</h3>
+        <table>
+          <tr><th>GLSL</th><th>WGSL</th></tr>
+          <tr><td><code>layout(location=0) in vec3 pos;</code></td><td><code>@location(0) var&lt;input&gt; pos: vec3&lt;f32&gt;;</code></td></tr>
+          <tr><td><code>uniform mat4 u_mvp;</code></td><td><code>@group(0) @binding(0) var&lt;uniform&gt; u_mvp: mat4x4&lt;f32&gt;;</code></td></tr>
+        </table>
+        <div class="tip">WGSL is stricter, safer, and enables better optimization.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WASM & EMSCRIPTEN -->
+  <section id="wasm" class="section">
+    <h2>WASM + Emscripten: C++ to Web</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Compile OpenGL C++ to WebGL</h3>
+        <pre>emcc main.cpp -O3 \
+  -s USE_WEBGL2=1 \
+  -s FULL_ES3=1 \
+  -s ALLOW_MEMORY_GROWTH=1 \
+  -s MAX_WEBGL_VERSION=2 \
+  -o game.html</pre>
+        <div class="perf"><strong>Perf:</strong> Add <code>-s GL_POOL_TEMP_BUFFERS=0</code> to reduce GC pressure.</div>
+      </div>
+      <div class="col">
+        <h3>WebGPU via Dawn + WASM</h3>
+        <pre>emcc --use-dawn \
+  -s USE_WEBGPU=1 \
+  -s GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0</pre>
+        <div class="tip">Dawn is Google’s WebGPU implementation. Use with Emscripten for C++ WebGPU.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section id="perf" class="section">
+    <h2>Performance: Max FPS, Min Latency</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Batching & State Sorting</h3>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              A[Sort by Shader] --> B[Sort by Texture]
+              B --> C[Sort by VBO]
+              C --> D[Instanced Draw]
+              classDef perf fill:#050,stroke:#0f0
+              class A,B,C,D perf
+          </div>
+        </div>
+        <div class="perf"><strong>Rule:</strong> Change state as infrequently as possible. Use <code>glMultiDraw*</code> in OpenGL.</div>
+      </div>
+      <div class="col">
+        <h3>Memory & Uploads</h3>
+        <table>
+          <tr><th>API</th><th>Fast Upload</th></tr>
+          <tr><td>WebGL</td><td><code>gl.bufferSubData()</code> + PBO (extension)</td></tr>
+          <tr><td>OpenGL</td><td><code>glMapBufferRange()</code> + persistent mapping</td></tr>
+          <tr><td>WebGPU</td><td><code>queue.writeBuffer()</code> or <code>GPUBuffer.mapAsync()</code></td></tr>
+        </table>
+        <div class="perf"><strong>Best:</strong> Persistent mapped buffers (OpenGL 4.4+) or <code>queue.writeBuffer()</code> in WebGPU.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEROP & MIGRATION -->
+  <section id="interop" class="section">
+    <h2>Interop & Migration Path</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Shared Code Strategy</h3>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              Core[Core Logic] --> WebGL[WebGL Renderer]
+              Core --> OpenGL[OpenGL C++]
+              Core --> WebGPU[WebGPU JS]
+              WebGL --> WASM[WASM Bridge]
+              OpenGL --> Emscripten[Emscripten]
+              classDef core fill:#022
+              class Core core
+          </div>
+        </div>
+        <div class="tip">Write renderer-agnostic core. Swap backends at compile time.</div>
+      </div>
+      <div class="col">
+        <h3>Migration Table</h3>
+        <table>
+          <tr><th>From → To</th><th>Effort</th><th>Perf Gain</th></tr>
+          <tr><td>WebGL → OpenGL C++</td><td>Medium</td><td>5–10×</td></tr>
+          <tr><td>WebGL → WebGPU</td><td>High</td><td>2–4×</td></tr>
+          <tr><td>OpenGL → WebGPU</td><td>High</td><td>1.2–2×</td></tr>
+        </table>
+        <div class="perf"><strong>Best ROI:</strong> WebGL → OpenGL C++ via Emscripten.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Ultimate performance guide. From WebGL to native OpenGL and WebGPU. Use WASM for cross-platform deployment.</p>
+    <p>— Build once. Run everywhere. At maximum speed.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+      showSection('all');
+    });
+  </script>
+
+</body>
+</html>

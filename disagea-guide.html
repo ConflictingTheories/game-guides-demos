@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Disgaea-Style SRPG Engine — WebGL 2.0 & OpenGL C++</title>
+  <style>
+    :root{
+      --bg:#000;
+      --fg:#e6e6e6;
+      --accent:#ff6b9d;
+      --muted:#9aa0a6;
+      --panel:#071018;
+      --hover:#1a1a1a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg)}
+    body{
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px, 40px 40px;
+      -webkit-font-smoothing:antialiased;
+      line-height:1.5;
+      padding:28px 36px;
+    }
+    header{border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:16px;margin-bottom:24px}
+    h1{font-size:22px;margin:0 0 8px 0;font-weight:600}
+    h2{font-size:18px;margin:20px 0 8px 0;color:var(--accent)}
+    h3{font-size:14px;margin:12px 0 6px 0}
+    p{color:var(--muted);margin:8px 0;font-size:14px}
+    .row{display:flex;gap:20px;flex-wrap:wrap}
+    .col{flex:1;min-width:280px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04)}
+    pre{background:rgba(255,255,255,0.02);padding:14px;border-radius:8px;color:var(--fg);font-size:12px;overflow:auto;border:1px solid rgba(255,255,255,0.06)}
+    .chip{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,107,157,0.1);color:var(--accent);font-size:11px;margin:2px 4px 2px 0;cursor:pointer;transition:0.2s}
+    .chip:hover{background:rgba(255,107,157,0.2)}
+    .chip.active{background:var(--accent);color:#000;font-weight:600}
+    .toc{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+    footer{margin-top:32px;border-top:1px solid rgba(255,255,255,0.04);padding-top:12px;color:var(--muted);font-size:12px}
+    .diagram{background:transparent;padding:12px;border:1px dashed rgba(255,255,255,0.03);border-radius:8px;margin:12px 0}
+    .note{color:var(--muted);font-size:13px}
+    .tip{border-left:3px solid var(--accent);padding-left:12px;margin:12px 0;color:var(--fg);font-size:13px}
+    .section{display:none}
+    .section.active{display:block}
+    #show-all-btn{margin:16px 0;padding:10px 16px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+    #show-all-btn:hover{opacity:0.9}
+    @media (max-width:900px){.row{flex-direction:column}}
+    table{border-collapse:collapse;width:100%;margin:10px 0}
+    th,td{border:1px solid rgba(255,255,255,0.06);padding:8px;text-align:left}
+    th{background:rgba(255,107,157,0.1)}
+    .disgaea{background:rgba(255,107,157,0.1);border-left:3px solid var(--accent);padding:10px;margin:10px 0}
+    .perf{background:rgba(255,215,0,0.1);border-left:3px solid gold;padding:10px;margin:10px 0}
+  </style>
+</head>
+<body>
+
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+
+  <header>
+    <h1>Disgaea-Style SRPG Engine — WebGL 2.0 & OpenGL C++</h1>
+    <p class="note">Complete tactical battle system: <strong>grid movement, Geo Panels, lifting/throwing, combo chains, 100+ units, Item World</strong>. Built for <strong>maximum depth and performance</strong>.</p>
+
+    <div class="toc">
+      <div class="chip active" data-section="all">Show All</div>
+      <div class="chip" data-section="overview">Overview</div>
+      <div class="chip" data-section="grid">Grid & Elevation</div>
+      <div class="chip" data-section="movement">Movement & Range</div>
+      <div class="chip" data-section="geo">Geo Panels & Effects</div>
+      <div class="chip" data-section="lift">Lift & Throw</div>
+      <div class="chip" data-section="combo">Combo & Chain</div>
+      <div class="chip" data-section="units">100+ Units</div>
+      <div class="chip" data-section="itemworld">Item World</div>
+      <div class="chip" data-section="perf">Performance</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Disgaea Battle System</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Core Loop:</strong> Select unit → Move → Act (Attack, Skill, Lift) → Execute → Next Turn. With <strong>Geo Panels, Towering, Combo, Item World</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              Select[Select Unit] --> Move[Move Phase]
+              Move --> Act[Act Phase]
+              Act --> Execute[Execute]
+              Execute --> Next[Next Unit]
+              classDef core fill:#300,stroke:#f69
+              class Select,Move,Act,Execute core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Key Systems</h3>
+        <ul>
+          <li><strong>Grid:</strong> 3D with elevation (0–9)</li>
+          <li><strong>Geo Panels:</strong> Color + effect (DMG, Heal, EXP)</li>
+          <li><strong>Lift/Throw:</strong> Stack units, throw over gaps</li>
+          <li><strong>Combo:</strong> Adjacent attacks chain</li>
+          <li><strong>Item World:</strong> Procedural dungeon per item</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRID & ELEVATION -->
+  <section id="grid" class="section">
+    <h2>Grid & Elevation System</h2>
+    <div class="row">
+      <div class="col">
+        <h3>3D Grid with Height</h3>
+        <pre>struct Cell {
+  int height;     // 0–9
+  int geoColor;   // 0=none, 1=red, 2=blue...
+  int geoEffect;  // 0=none, 1=DMG+50%, 2=Heal...
+  Unit* unit;
+};
+Cell grid[WIDTH][DEPTH];</pre>
+        <div class="tip">Height affects movement cost and line-of-sight.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              G[Grid Cell] --> H[Height: 0–9]
+              G --> C[Geo Color]
+              G --> E[Geo Effect]
+              G --> U[Unit]
+              H --> Cost[Move Cost]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOVEMENT -->
+  <section id="movement" class="section">
+    <h2>Movement & Range Visualization</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Flood Fill for Move Range</h3>
+        <pre>queue.push(start);
+visited[start] = true;
+range[start] = 0;
+
+while (!queue.empty()) {
+  auto curr = queue.pop();
+  for (dir in 4) {
+    auto next = curr + dir;
+    if (valid(next) && !visited[next]) {
+      int cost = moveCost(curr, next);
+      if (range[curr] + cost <= unit.move) {
+        range[next] = range[curr] + cost;
+        queue.push(next);
+        visited[next] = true;
+      }
+    }
+  }
+}</pre>
+        <div class="tip">Cost = 1 + heightDiff. Jump down = free.</div>
+      </div>
+      <div class="col">
+        <h3>Range Highlight</h3>
+        <pre>// Instanced quads
+for (cell in moveRange) {
+  instanceData[i++] = vec4(cell.x, cell.height, cell.z, 0); // blue
+}
+glDrawElementsInstanced(GL_TRIANGLES, 6, count);</pre>
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+              Unit[Unit] --> Flood[Flood Fill]
+              Flood --> Range[Move Range]
+              Range --> Highlight[Instanced Quads]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GEO PANELS -->
+  <section id="geo" class="section">
+    <h2>Geo Panels & Chain Reactions</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Geo Panel Effects</h3>
+        <pre>struct GeoEffect {
+  int type;     // 0=none, 1=DMG, 2=Heal, 3=EXP
+  int value;
+  int color;
+};
+
+void applyGeo(Unit* u) {
+  Cell* c = getCell(u->pos);
+  if (c->geoEffect) {
+    switch (c->geoEffect->type) {
+      case 1: u->hp -= c->geoEffect->value; break;
+      case 3: u->exp += c->geoEffect->value; break;
+    }
+  }
+}</pre>
+        <div class="disgaea"><strong>Chain:</strong> Destroy Geo Symbol → all same color panels trigger.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            sequenceDiagram
+              Destroy[Destroy Symbol]
+              Destroy->>Panels: Find Same Color
+              Panels->>Units: Apply Effect
+              Units->>Chain: Bonus Combo!
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIFT & THROW -->
+  <section id="lift" class="section">
+    <h2>Lift, Throw & Towering</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Lift State Machine</h3>
+        <pre>enum LiftState { NONE, LIFTING, CARRYING, THROWING };
+LiftState lift;
+
+Unit* liftUnit(Unit* target) {
+  if (canLift(target)) {
+    lift = CARRYING;
+    carried = target;
+    target->visible = false;
+    return true;
+  }
+}</pre>
+        <div class="tip">Throw range = STR / 10. Can throw over gaps.</div>
+      </div>
+      <div class="col">
+        <h3>Towering</h3>
+        <pre>// Stack units vertically
+Unit* tower[10];
+int towerHeight = 0;
+
+void addToTower(Unit* u) {
+  tower[towerHeight++] = u;
+  u->pos.y = towerHeight * 1.5;
+}</pre>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              A[Unit A] --> L[Lift]
+              L --> B[Unit B]
+              B --> T[Tower Stack]
+              T --> Throw[Throw Over Gap]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMBO -->
+  <section id="combo" class="section">
+    <h2>Combo & Team Attacks</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Adjacency Detection</h3>
+        <pre>bool isAdjacent(Unit* a, Unit* b) {
+  return abs(a->x - b->x) + abs(a->z - b->z) == 1;
+}
+
+void checkCombo() {
+  for (unit in allies) {
+    if (isAdjacent(unit, attacker)) {
+      comboCount++;
+      executeTeamAttack(unit);
+    }
+  }
+}</pre>
+        <div class="disgaea"><strong>Bonus:</strong> Combo meter → Special finisher.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+              A[Attacker] --> Adj[Adjacent Allies]
+              Adj --> Combo[Combo Chain]
+              Combo --> Bonus[Bonus DMG + EXP]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 100+ UNITS -->
+  <section id="units" class="section">
+    <h2>100+ Units with ECS</h2>
+    <div class="row">
+      <div class="col">
+        <h3>ECS for Scale</h3>
+        <pre>struct Position { int x, z, h; };
+struct Stats { int hp, sp, atk; };
+struct Team { int id; };
+
+Query q = world.query<Position, Stats, Team>();
+for (chunk in q) {
+  parallel_for(chunk, updateUnit);
+}</pre>
+        <div class="tip">Use <strong>archetypes</strong>: Player, Enemy, Lifted, Tower.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              ECS[ECS World] --> Q[Query Units]
+              Q --> Parallel[Parallel Update]
+              Parallel --> GPU[Instanced Render]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ITEM WORLD -->
+  <section id="itemworld" class="section">
+    <h2>Item World: Procedural Dungeons</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Per-Item Dungeon</h3>
+        <pre>struct Item {
+  int level;
+  Dungeon* world;
+};
+
+Dungeon* generateItemWorld(Item* item) {
+  Dungeon* d = new Dungeon(item->level * 10);
+  d->generateFloors();
+  d->spawnInnocents();
+  return d;
+}</pre>
+        <div class="disgaea"><strong>Innocents:</strong> Boost stats, can be subdued.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              Item[Item] --> Level[Item Level]
+              Level --> Floors[10x Floors]
+              Floors --> Boss[Floor Boss]
+              Boss --> Reward[Stat Boost]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section id="perf" class="section">
+    <h2>Performance: 100+ Units @ 60 FPS</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Instanced Unit Rendering</h3>
+        <pre>// One draw call per unit type
+glBindVertexArray(unitVAO[type]);
+glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0, unitCount[type]);</pre>
+        <div class="perf"><strong>Key:</strong> Instance buffer: <code>mat4 model, vec4 color, int animFrame</code></div>
+      </div>
+      <div class="col">
+        <h3>Geo Panel Batching</h3>
+        <pre>// One draw per color
+for (color in geoColors) {
+  bindTexture(geoTexture[color]);
+  drawInstanced(geoCells[color]);
+}</pre>
+        <div class="perf"><strong>Target:</strong> < 50 draw calls, < 2 MB upload/frame.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+              Units[100+ Units] --> Instance[Instanced by Type]
+              Geo[Geo Panels] --> Batch[Batch by Color]
+              Batch --> GPU[GPU]
+              classDef fast fill:#050,stroke:#0f0
+              class Instance,Batch fast
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Complete Disgaea-style SRPG engine. Ready for <strong>WebGL 2.0</strong> and <strong>OpenGL C++</strong>.</p>
+    <p>— Build the ultimate strategy game. With 9999 levels. And Prinnies.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+      showSection('all');
+    });
+  </script>
+
+</body>
+</html>

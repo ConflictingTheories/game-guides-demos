@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Art</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <div>
+        <button id="generateButton">Generate Art</button>
+        <canvas id="artCanvas" width="800" height="600"></canvas>
+    </div>
+    <script>
+        const canvas = document.getElementById('artCanvas');
+        const button = document.getElementById('generateButton');
+
+        function* shapeGenerator() {
+            while (true) {
+                yield {
+                    x: Math.random() * 800, // Random x position within the canvas width
+                    y: Math.random() * 600, // Random y position within the canvas height
+                    radius: Math.random() * 50 + 20, // Random radius between 20 and 70 pixels
+                    color: `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color in hex format
+                };
+            }
+        }
+
+        const generator = shapeGenerator();
+
+        function drawShape() {
+            const ctx = canvas.getContext('2d');
+            const shape = generator.next().value;
+            
+            ctx.beginPath();
+            ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+            ctx.fillStyle = shape.color;
+            ctx.fill();
+        }
+
+        button.addEventListener('click', drawShape);
+    </script>
+</body>
+</html>

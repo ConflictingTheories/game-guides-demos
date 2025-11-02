@@ -1,0 +1,393 @@
+<!-- fighting_rollback.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Fighting Rollback — Melee Parry/Dodge</title>
+    <style>
+        body {
+            background: #070708;
+            color: #ddd;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        canvas {
+            background: #0f1012;
+            display: block;
+            margin: 8px auto;
+            border: 1px solid #222;
+        }
+
+        #ui {
+            width: 760px;
+            margin: 0 auto;
+        }
+
+        #log {
+            height: 90px;
+            overflow: auto;
+            font-size: 12px;
+            text-align: left;
+            background: #060606;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #222;
+            color: #bfbfbf;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: #bbb;
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>Fighting Rollback — Melee Attack / Parry Demo</h3>
+    <canvas id="game" width="760" height="400"></canvas>
+    <div id="ui">
+        <div class="hint">Latency: <input id="lat" type="range" min="0" max="300" value="120"> <span
+                id="latv">120</span> ms &nbsp; | &nbsp; P1: WASD + F (attack) • P2: IJKL + H (parry)</div>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        /*
+        Fighting rollback demo:
+        - Two players. Attacks have wind-up and hit window.
+        - Client spawns local attack and may mark hit locally if proximity satisfied.
+        - Server applies deterministic parity: on certain spawnTick mod value, the defender performs a server-only dodge/parry that causes miss.
+        - When server sends correction (hit/miss), client rewinds to authoritative tick and replays inputs.
+        - Visual rollback flash and log entry.
+        */
+
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const lat = document.getElementById('lat');
+        const latv = document.getElementById('latv');
+        const log = document.getElementById('log');
+        lat.oninput = () => latv.innerText = lat.value;
+
+        const tickRate = 60;
+        const dt = 1 / tickRate;
+        let tick = 0;
+        function now() { return Date.now(); }
+
+        const keys = {};
+        document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function pushLog(s) {
+            const t = new Date().toLocaleTimeString();
+            log.innerHTML = `[${t}] ${s}\n` + log.innerHTML;
+            if (log.childNodes.length > 300) log.removeChild(log.lastChild);
+        }
+
+        // players
+        function makePlayer(x, y, color, controls, isAttacker = false) {
+            return {
+                color, controls, isAttacker,
+                pred: { x, y }, server: { x, y },
+                inputHistory: {}, // tick -> input
+                pendingToServer: [],
+                localAttacks: [] // predicted local attacks: {id, spawnTick, x,y, duration, hitLocal?}
+            };
+        }
+
+        const players = [
+            makePlayer(160, 200, 'cyan', ['w', 'a', 's', 'd'], true),
+            makePlayer(600, 200, 'lime', ['i', 'j', 'k', 'l'], false)
+        ];
+
+        let nextAttackId = 1;
+        const speed = 160;
+        const attackRange = 40;
+        const attackWindup = 7; // ticks before hit window
+        const attackWindow = 6; // ticks of hit window
+
+        // server authoritative state
+        const serverState = {
+            players: [
+                { x: players[0].server.x, y: players[0].server.y },
+                { x: players[1].server.x, y: players[1].server.y }
+            ],
+            attacks: [] // server-side resolved attacks, for authoritative result
+        };
+
+        let serverIncoming = []; // messages from clients
+        let serverToClientQueues = [[], []]; // messages back to clients
+
+        // sample input
+        function sampleInputFor(p) {
+            return {
+                up: !!keys[p.controls[0]],
+                left: !!keys[p.controls[1]],
+                down: !!keys[p.controls[2]],
+                right: !!keys[p.controls[3]],
+                attack: !!keys['f'] && p.isAttacker || !!keys['h'] && !p.isAttacker // F for attacker, H for defender parry (client-side)
+            };
+        }
+
+        function applyMove(state, input, dt) {
+            let dx = 0, dy = 0;
+            if (input.up) dy -= 1;
+            if (input.down) dy += 1;
+            if (input.left) dx -= 1;
+            if (input.right) dx += 1;
+            if (dx !== 0 && dy !== 0) { const k = 1 / Math.sqrt(2); dx *= k; dy *= k; }
+            state.x += dx * speed * dt;
+            state.y += dy * speed * dt;
+        }
+
+        // Client tick: predict movement and local attack spawn
+        function clientTick(idx) {
+            const p = players[idx];
+            const input = sampleInputFor(p);
+            p.inputHistory[tick] = input;
+            // move predicted
+            applyMove(p.pred, input, dt);
+
+            // attack spawn for attacker
+            if (p.isAttacker && input.attack && !p._justAttacked) {
+                const id = nextAttackId++;
+                const spawnTick = tick;
+                const attack = { id, spawnTick, x: p.pred.x + attackRange, y: p.pred.y, duration: attackWindup + attackWindow, hitLocal: false, resolved: false };
+                p.localAttacks.push(attack);
+                // send message including attack request to server
+                serverIncoming.push({ from: idx, tick, input, spawnAttack: { id, spawnTick }, sendTime: now(), latency: parseInt(lat.value) });
+                p._justAttacked = true;
+                pushLog(`Client: Attack ${id} spawned locally at tick ${spawnTick}`);
+            } else if (!input.attack) {
+                p._justAttacked = false;
+            }
+
+            // defender can show parry animation locally if pressing H even if server may not accept it
+            // advance local attack timers
+            p.localAttacks.forEach(a => {
+                const age = tick - a.spawnTick;
+                if (age >= attackWindup && age < attackWindup + attackWindow) {
+                    // within predicted hit window, if defender prox too close, mark hitLocal
+                    const defender = players[1].pred;
+                    // attacker is player 0; if idx==0 skip
+                    if (idx === 0) {
+                        if (Math.hypot(a.x - defender.x, a.y - defender.y) < 32) {
+                            a.hitLocal = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Server tick: process messages and resolve attacks deterministically with server-only dodge/parry rule
+        function serverTick() {
+            const nowt = now();
+            for (let i = serverIncoming.length - 1; i >= 0; --i) {
+                const msg = serverIncoming[i];
+                if (nowt - msg.sendTime >= msg.latency) {
+                    // apply movement input for that client's authoritative player
+                    const s = serverState.players[msg.from];
+                    applyMove(s, msg.input, 1 / tickRate);
+
+                    // if spawnAttack, server creates authoritative attack and resolves immediately using server state for defender
+                    if (msg.spawnAttack) {
+                        const id = msg.spawnAttack.id;
+                        // spawn at authoritative shooter pos + range
+                        const atk = { id, spawnTick: msg.spawnAttack.spawnTick, x: s.x + attackRange, y: s.y, resolved: false, hit: false };
+                        // server authoritative check: if defender close during window -> hit unless server dodge applies
+                        // simple deterministic server dodge rule: if spawnTick % 2 === 0 => server dodges (target moves right by 40 px on server before check)
+                        const defender = serverState.players[1];
+                        // simulate defender server-only dodge if condition matches to force dispute
+                        const dodge = (msg.spawnAttack.spawnTick % 2 === 0); // deterministic
+                        if (dodge) {
+                            defender.x += 40; // server-only dodge
+                            // server finds miss
+                            atk.hit = false;
+                            atk.resolved = true;
+                            pushLog(`SERVER: Attack ${id} resolved as MISS (server dodge) at tick ${tick}`);
+                            // send correction to shooter client about attack result after latency
+                            serverToClientQueues[0].push({ to: 0, tick: msg.spawnAttack.spawnTick, correction: { type: 'attack_miss', attackId: id, serverDef: { x: defender.x, y: defender.y } }, sendTime: now(), latency: parseInt(lat.value) });
+                        } else {
+                            // check distance using server positions
+                            if (Math.hypot(atk.x - defender.x, atk.y - defender.y) < 32) {
+                                atk.hit = true; atk.resolved = true;
+                                pushLog(`SERVER: Attack ${id} resolved as HIT at tick ${tick}`);
+                                serverToClientQueues[0].push({ to: 0, tick: msg.spawnAttack.spawnTick, correction: { type: 'attack_hit', attackId: id, serverDef: { x: defender.x, y: defender.y } }, sendTime: now(), latency: parseInt(lat.value) });
+                            } else {
+                                // miss by position
+                                atk.hit = false; atk.resolved = true;
+                                pushLog(`SERVER: Attack ${id} resolved as MISS (distance) at tick ${tick}`);
+                                serverToClientQueues[0].push({ to: 0, tick: msg.spawnAttack.spawnTick, correction: { type: 'attack_miss', attackId: id, serverDef: { x: defender.x, y: defender.y } }, sendTime: now(), latency: parseInt(lat.value) });
+                            }
+                        }
+                        serverState.attacks.push(atk);
+                    }
+
+                    // send authoritative position corrections periodically as well
+                    serverToClientQueues.forEach((q, i) => {
+                        q.push({ to: i, tick: msg.tick, correction: { type: 'pos', pos: serverState.players[i] }, sendTime: now(), latency: parseInt(lat.value) });
+                    });
+
+                    serverIncoming.splice(i, 1);
+                }
+            }
+        }
+
+        // client processing server messages
+        let flashes = [];
+        function pushRollbackFlash(playerIndex, reason, tickBack) {
+            flashes.push({ playerIndex, reason, tickBack, created: now() });
+        }
+
+        function clientProcessServerMessages(plIndex) {
+            const q = serverToClientQueues[plIndex];
+            const nowt = now();
+            for (let i = q.length - 1; i >= 0; --i) {
+                const msg = q[i];
+                if (nowt - msg.sendTime >= msg.latency) {
+                    const p = players[plIndex];
+                    if (msg.correction.type === 'pos') {
+                        // authoritative pos for tick msg.tick
+                        p.pred.x = msg.correction.pos.x;
+                        p.pred.y = msg.correction.pos.y;
+                        // replay inputs from msg.tick+1 .. now
+                        for (let t = msg.tick + 1; t <= tick; ++t) {
+                            const inp = p.inputHistory[t];
+                            if (inp) applyMove(p.pred, inp, 1 / tickRate);
+                        }
+                        pushLog(`Client ${plIndex + 1} pos corrected to server pos for tick ${msg.tick}`);
+                        pushRollbackFlash(plIndex, 'pos-correct', msg.tick);
+                    } else if (msg.correction.type === 'attack_hit' || msg.correction.type === 'attack_miss') {
+                        if (plIndex === 0) {
+                            const p0 = players[0];
+                            // find local predicted attack and apply correction
+                            const atk = p0.localAttacks.find(a => a.id === msg.correction.attackId);
+                            if (atk) {
+                                if (msg.correction.type === 'attack_hit') {
+                                    // mark server confirmed hit
+                                    atk.serverResolved = 'hit';
+                                    pushLog(`Client: attack ${atk.id} CONFIRMED HIT by server (tick ${msg.tick})`);
+                                } else {
+                                    // server says miss: undo any local hit and rollback to server def pos
+                                    atk.serverResolved = 'miss';
+                                    // set predicted defender pos to serverDef then replay defender inputs (we assume defender pos correction happens via pos message too)
+                                    players[1].pred.x = msg.correction.serverDef.x;
+                                    players[1].pred.y = msg.correction.serverDef.y;
+                                    // replay defender inputs from msg.tick+1 .. now
+                                    for (let t = msg.tick + 1; t <= tick; ++t) {
+                                        const inp = players[1].inputHistory[t];
+                                        if (inp) applyMove(players[1].pred, inp, 1 / tickRate);
+                                    }
+                                    // also remove local hit marker if client predicted one
+                                    if (atk.hitLocal) {
+                                        atk.hitLocal = false;
+                                        pushLog(`Client: attack ${atk.id} local hit removed due to server MISS`);
+                                    }
+                                    // visual rollback flash
+                                    pushRollbackFlash(0, 'attack-miss', msg.tick);
+                                }
+                            }
+                        }
+                    }
+                    q.splice(i, 1);
+                }
+            }
+        }
+
+        // draw
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // arena background
+            ctx.fillStyle = '#0b0c0d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // draw players (server ghost + predicted)
+            players.forEach((p, i) => {
+                // server ghost
+                ctx.globalAlpha = 0.45;
+                ctx.fillStyle = p.color;
+                const sp = serverState.players[i];
+                ctx.fillRect(sp.x - 16, sp.y - 16, 32, 32);
+                ctx.globalAlpha = 1.0;
+                // predicted player
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.pred.x - 14, p.pred.y - 14, 28, 28);
+            });
+
+            // draw predicted attacks (attacker local)
+            const att = players[0].localAttacks;
+            att.forEach(a => {
+                const age = tick - a.spawnTick;
+                if (age < a.duration) {
+                    // windup visual
+                    if (age < attackWindup) {
+                        ctx.strokeStyle = 'yellow';
+                        ctx.strokeRect(players[0].pred.x + 10, players[0].pred.y - 12, 16, 24);
+                    } else {
+                        // hit window
+                        ctx.fillStyle = a.hitLocal ? 'orange' : 'white';
+                        ctx.fillRect(players[0].pred.x + 10, players[0].pred.y - 10, 20, 20);
+                    }
+                }
+            });
+
+            // server authoritative attacks for reference
+            serverState.attacks.forEach(a => {
+                if (!a.resolved) return;
+                ctx.globalAlpha = 0.45;
+                ctx.fillStyle = a.hit ? 'red' : '#666';
+                ctx.fillRect(a.x - 10, a.y - 10, 20, 20);
+                ctx.globalAlpha = 1.0;
+            });
+
+            // rollback flashes
+            const nowt = now();
+            flashes = flashes.filter(f => {
+                const age = nowt - f.created;
+                if (age > 900) return false;
+                const a = 1 - (age / 900);
+                ctx.save();
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 3;
+                const p = players[f.playerIndex];
+                ctx.strokeRect(p.pred.x - 20, p.pred.y - 20, 40, 40);
+                ctx.restore();
+                return true;
+            });
+
+            // HUD
+            ctx.fillStyle = '#ddd'; ctx.font = '12px monospace';
+            ctx.fillText(`Tick: ${tick}`, 8, 14);
+            ctx.fillText(`Latency: ${lat.value}ms`, 8, 28);
+        }
+
+        // main loop
+        function gameLoop() {
+            tick++;
+            // client ticks
+            players.forEach((_, idx) => clientTick(idx));
+            // server tick
+            serverTick();
+            // client process server messages
+            players.forEach((_, idx) => clientProcessServerMessages(idx));
+            // draw
+            draw();
+        }
+
+        setInterval(gameLoop, 1000 / tickRate);
+
+        // send periodic authoritative positions to clients (keeps state synced)
+        setInterval(() => {
+            serverToClientQueues.forEach((q, i) => {
+                q.push({ to: i, tick, correction: { type: 'pos', pos: serverState.players[i] }, sendTime: now(), latency: parseInt(lat.value) });
+            });
+        }, 250);
+
+        pushLog("Fighting demo ready. P1 attacks with F, P2 can press H (client parry) but server may perform deterministic dodge to force dispute. Increase latency to see rollbacks.");
+    </script>
+</body>
+
+</html>

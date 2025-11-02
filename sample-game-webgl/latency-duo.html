@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Two-Player Rollback Demo</title>
+<style>
+  canvas { background:#111; display:block; margin:0 auto; }
+  #ui { text-align:center; margin-top:10px; color:white; font-family:sans-serif; }
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="400"></canvas>
+<div id="ui">
+  Latency: <input type="range" id="latency" min="0" max="300" value="100"> 
+  <span id="latencyVal">100</span> ms
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const latencySlider = document.getElementById('latency');
+const latencyVal = document.getElementById('latencyVal');
+latencySlider.oninput = () => latencyVal.innerText = latencySlider.value;
+
+const keys = {};
+document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+const tickRate = 60;
+const dt = 1/tickRate;
+
+// Two clients
+let clients = [
+  {pred:{x:100,y:100}, server:{x:100,y:100}, color:'cyan', keys:['w','a','s','d']},
+  {pred:{x:200,y:100}, server:{x:200,y:100}, color:'lime', keys:['i','j','k','l']}
+];
+
+let latencyQueues = [[],[]];
+
+function move(client, dt) {
+  const speed = 150;
+  if(keys[client.keys[0]]) client.pred.y -= speed*dt;
+  if(keys[client.keys[2]]) client.pred.y += speed*dt;
+  if(keys[client.keys[1]]) client.pred.x -= speed*dt;
+  if(keys[client.keys[3]]) client.pred.x += speed*dt;
+}
+
+function gameTick() {
+  const latency = parseInt(latencySlider.value);
+  
+  clients.forEach((client, idx)=>{
+    // Move predicted
+    move(client, dt);
+
+    // Send to “server” with latency
+    latencyQueues[idx].push({
+      x: client.pred.x, y: client.pred.y,
+      sendTime: Date.now(), latency
+    });
+
+    // Process server updates
+    const now = Date.now();
+    latencyQueues[idx] = latencyQueues[idx].filter(msg => {
+      if(now - msg.sendTime >= msg.latency){
+        client.server.x = msg.x;
+        client.server.y = msg.y;
+        return false;
+      }
+      return true;
+    });
+
+    // Rollback correction
+    const correction = 0.2;
+    client.pred.x += (client.server.x - client.pred.x)*correction;
+    client.pred.y += (client.server.y - client.pred.y)*correction;
+  });
+
+  draw();
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  
+  clients.forEach(client=>{
+    // Predicted
+    ctx.fillStyle = client.color;
+    ctx.fillRect(client.pred.x-10, client.pred.y-10, 20,20);
+
+    // Server
+    ctx.fillStyle = client.color;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(client.server.x-10, client.server.y-10, 20,20);
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+setInterval(gameTick, 1000/tickRate);
+</script>
+</body>
+</html>

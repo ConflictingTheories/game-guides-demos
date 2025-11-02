@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Disgaea Merged Demo — WebGL2 SRPG</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#000;color:#fff;font-family:monospace;padding:10px;overflow:hidden}
+    canvas{display:block;width:100%;max-width:1000px;height:600px;margin:10px auto;border:3px solid #ff6b9d;border-radius:12px;background:#111}
+    .ui{background:#111;padding:10px;border-radius:8px;margin:5px auto;max-width:1000px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    .btn{background:#ff6b9d;color:#000;padding:8px 16px;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+    .btn:hover{background:#ff8bb3}
+    .status{color:#ff6b9d;font-weight:bold}
+    .prinny{font-size:40px;text-align:center;margin:15px;color:#ff6b9d;animation:explode 1.5s infinite}
+    @keyframes explode{0%,100%{transform:scale(1);text-shadow:0 0 10px #ff6b9d}50%{transform:scale(1.4);text-shadow:0 0 30px #ff0000;color:#ff0000}}
+    kbd{background:#333;padding:3px 6px;border-radius:4px;font-size:11px}
+    .tower{display:inline-block;width:40px;height:40px;background:#ff6b9d;border-radius:8px;margin:2px;text-align:center;line-height:40px;font-size:12px;color:#000;font-weight:bold}
+    .itemworld{background:#222;padding:10px;border-radius:8px;margin:10px auto;max-width:800px;text-align:center}
+    .hl{color:gold;font-weight:bold}
+    .panel { background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 8px; margin-bottom: 12px }
+    .ability { display: flex; flex-direction: column; gap: 8px }
+    .label-dom { pointer-events: none; text-align: center; color: #fff; font-weight: 700; font-size: 13px }
+    .bar-wrap { width: 140px; height: 10px; background: rgba(0, 0, 0, 0.5); border-radius: 6px; overflow: hidden; margin: 6px auto }
+    .hp-inner { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff3b3b) }
+    .mp-inner { height: 100%; background: linear-gradient(90deg, #4db6ff, #2a8cff) }
+    .damage-float { position: absolute; pointer-events: none; font-weight: 900; font-size: 20px; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); transform-origin: center }
+    .small { font-size: 13px; color: #9aa }
+    #debug { font-family: monospace; font-size: 12px; color: #9ad; white-space: pre-wrap }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center;color:#ff6b9d">DISGAEA DOOD FOREVER</h1>
+  <p style="text-align:center">TOWER • ITEM WORLD • DARK ASSEMBLY • 9999 HL • PRINNY DOOD!</p>
+
+  <canvas id="c"></canvas>
+
+  <div class="ui">
+    <button class="btn" id="towerBtn">BUILD TOWER</button>
+    <button class="btn" id="itemBtn">ENTER ITEM WORLD</button>
+    <button class="btn" id="assemblyBtn">DARK ASSEMBLY</button>
+    <button class="btn" id="hlBtn">+1000 HL</button>
+    <span class="status">Status: <span id="status">Ready!</span> | HL: <span id="hl" class="hl">0</span></span>
+  </div>
+
+  <div class="prinny">PRINNY DOOD FOREVER!</div>
+
+  <script>
+    /* ===========================
+       Minimal math helpers (vec3, mat4)
+       =========================== */
+    function vec3(x = 0, y = 0, z = 0) { return { x, y, z }; }
+    function add(a, b) { return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }; }
+    function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
+    function mulS(v, s) { return { x: v.x * s, y: v.y * s, z: v.z * s }; }
+    function dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+    function cross(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
+    function length(v) { return Math.hypot(v.x, v.y, v.z); }
+    function normalize(v) { const L = length(v) || 1; return { x: v.x / L, y: v.y / L, z: v.z / L }; }
+
+    /* 4x4 matrix functions column-major for WebGL */
+    function mat4Identity() { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); }
+    function mat4Multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          let s = 0;
+          for (let k = 0; k < 4; k++) s += a[k * 4 + i] * b[j * 4 + k];
+          out[j * 4 + i] = s;
+        }
+      }
+      return out;
+    }
+    function mat4Translate(tx, ty, tz) { const m = mat4Identity(); m[12] = tx; m[13] = ty; m[14] = tz; return m; }
+    function mat4Scale(sx, sy, sz) { const m = mat4Identity(); m[0] = sx; m[5] = sy; m[10] = sz; return m; }
+    function mat4RotateX(a) { const m = mat4Identity(); const c = Math.cos(a), s = Math.sin(a); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; }
+    function mat4RotateY(a) { const m = mat4Identity(); const c = Math.cos(a), s = Math.sin(a); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; }
+    function mat4Perspective(fovy, aspect, near, far) {
+      const f = 1.0 / Math.tan(fovy / 2);
+      const nf = 1 / (near - far);
+      const out = new Float32Array(16);
+      out[0] = f / aspect;
+      out[5] = f;
+      out[10] = (far + near) * nf;
+      out[11] = -1;
+      out[14] = (2 * far * near) * nf;
+      out[15] = 0;
+      return out;
+    }
+    function mat4LookAt(eye, center, up) {
+      const f = normalize(sub(center, eye));
+      const s = normalize(cross(f, up));
+      const u = cross(s, f);
+      const out = mat4Identity();
+      out[0] = s.x; out[4] = s.y; out[8] = s.z;
+      out[1] = u.x; out[5] = u.y; out[9] = u.z;
+      out[2] = -f.x; out[6] = -f.y; out[10] = -f.z;
+      out[12] = -dot(s, eye);
+      out[13] = -dot(u, eye);
+      out[14] = dot(f, eye);
+      return out;
+    }
+    function transformPoint(m, p) {
+      const x = m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12];
+      const y = m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13];
+      const z = m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14];
+      const w = m[3] * p.x + m[7] * p.y + m[11] * p.z + m[15];
+      return { x: x / w, y: y / w, z: z / w, w: w };
+    }
+
+    /* ===========================
+       WebGL2 init and shaders for isometric quads
+       =========================== */
+    const canvas = document.getElementById('glcanvas');
+    const gl = canvas.getContext('webgl2', { antialias: true });
+    if (!gl) { alert('WebGL2 not supported'); throw new Error('no webgl2'); }
+
+    function resizeCanvas() { const r = canvas.getBoundingClientRect(); canvas.width = r.width * devicePixelRatio; canvas.height = r.height * devicePixelRatio; gl.viewport(0, 0, canvas.width, canvas.height); }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* Shaders for instanced quads */
+    const vs = `#version 300 es
+in vec2 aPos;
+in vec3 aOffset;
+in vec4 aColor;
+uniform mat4 uMVP;
+out vec4 vColor;
+void main(){
+  vec3 pos = vec3(aPos + aOffset.xy, aOffset.z);
+  gl_Position = uMVP * vec4(pos, 1.0);
+  vColor = aColor;
+}`;
+    const fs = `#version 300 es
+precision mediump float;
+in vec4 vColor;
+out vec4 fragColor;
+void main(){ fragColor = vColor; }`;
+
+    function compileShader(src, type) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s)); throw new Error('shader compile fail');
+      }
+      return s;
+    }
+    function createProgram(vsSrc, fsSrc) {
+      const p = gl.createProgram();
+      gl.attachShader(p, compileShader(vsSrc, gl.VERTEX_SHADER));
+      gl.attachShader(p, compileShader(fsSrc, gl.FRAGMENT_SHADER));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(p)); throw new Error('program link fail'); }
+      return p;
+    }
+    const program = createProgram(vs, fs);
+    gl.useProgram(program);
+    const attribs = {
+      pos: gl.getAttribLocation(program, 'aPos'),
+      offset: gl.getAttribLocation(program, 'aOffset'),
+      color: gl.getAttribLocation(program, 'aColor')
+    };
+    const uniforms = {
+      mvp: gl.getUniformLocation(program, 'uMVP')
+    };
+
+    /* Quad VBO */
+    const quad = new Float32Array([-0.5,-0.5, 0.5,-0.5, -0.5,0.5, 0.5,-0.5, 0.5,0.5, -0.5,0.5]);
+    const quadVBO = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+
+    /* Instance VBOs */
+    const instVBO = gl.createBuffer();
+    const colVBO = gl.createBuffer();
+
+    /* Grid & Units setup */
+    const W=16, D=12;
+    const grid = Array(W*D).fill().map(()=>({geo:0,unit:null}));
+
+    class Unit{
+      constructor(x,z,team,type, hp=100, mp=50){
+        this.x=x;this.z=z;this.team=team;this.type=type;
+        this.hp=hp; this.maxHp=hp; this.mp=mp; this.maxMp=mp;
+        this.move=4;this.lifted=null;this.carrying=false;
+        this.selected=false;this.visible=true;
+        grid[x+z*W].unit=this;
+        this.labelEl = null;
+      }
+    }
+
+    const units = [
+      new Unit(4,4,0,0, 120, 60), // Hero
+      new Unit(5,5,0,1, 90, 80), // Prinny
+      new Unit(10,7,1,2, 150, 20), // Enemy
+    ];
+
+    // Geo Panels
+    for(let x=7;x<10;x++)for(let z=6;z<9;z++) grid[x+z*W].geo=1;
+    grid[8+7*W].geo=2; // Symbol
+
+    let selected = null;
+
+    /* DOM labels for units */
+    function makeLabel(unit) {
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'absolute';
+      wrapper.style.transform = 'translate(-50%,-100%)';
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.width = '160px';
+      wrapper.innerHTML = `
+    <div class="label-dom">${unit.type===1?'PRINNY':'UNIT'}</div>
+    <div class="bar-wrap"><div class="hp-inner" style="width:${(unit.hp / unit.maxHp * 100).toFixed(0)}%"></div></div>
+    <div class="bar-wrap"><div class="mp-inner" style="width:${(unit.mp / unit.maxMp * 100).toFixed(0)}%"></div></div>
+    <div class="small" style="text-align:center;color:#9aa;margin-top:4px">(${unit.x}, ${unit.z})</div>
+  `;
+      document.getElementById('viewport').appendChild(wrapper);
+      unit.labelEl = wrapper;
+    }
+    for (const u of units) makeLabel(u);
+
+    /* Camera orbit controls */
+    let camAzimuth = -Math.PI/4;
+    let camElevation = Math.PI/5;
+    let camDistance = 20;
+    let camTarget = { x: 7, y: 0, z: 7 };
+
+    let isPointerDown = false, lastX = 0, lastY = 0, pointerButton = 0;
+    canvas.addEventListener('pointerdown', (e) => { isPointerDown = true; lastX = e.clientX; lastY = e.clientY; pointerButton = e.button; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointerup', (e) => { isPointerDown = false; canvas.releasePointerCapture(e.pointerId); });
+    canvas.addEventListener('pointercancel', () => { isPointerDown = false; });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isPointerDown) return;
+      const dx = (e.clientX - lastX), dy = (e.clientY - lastY);
+      lastX = e.clientX; lastY = e.clientY;
+      if (pointerButton === 0) { // left drag => rotate
+        camAzimuth -= dx * 0.005;
+        camElevation = Math.max(0.12, Math.min(Math.PI / 2 - 0.05, camElevation - dy * 0.005));
+      } else if (pointerButton === 2) { // right drag => pan
+        const panSpeed = 0.01 * camDistance;
+        const right = { x: Math.cos(camAzimuth), y: 0, z: -Math.sin(camAzimuth) };
+        const up = { x: 0, y: 1, z: 0 };
+        camTarget.x += (-right.x * dx + up.x * dy) * panSpeed;
+        camTarget.z += (-right.z * dx + up.z * dy) * panSpeed;
+      }
+    });
+    canvas.addEventListener('wheel', (e) => { e.preventDefault(); camDistance *= (1 + e.deltaY * 0.001); camDistance = Math.max(5, Math.min(60, camDistance)); }, { passive: false });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    /* Raycast for isometric grid */
+    function screenToNDC(x, y) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: ((x - rect.left) / rect.width) * 2 - 1, y: -((y - rect.top) / rect.height) * 2 + 1 };
+    }
+    function inverseMat4(m) {
+      const inv = new Float32Array(16), a = m;
+      inv[0] = a[5] * a[10] * a[15] - a[5] * a[11] * a[14] - a[9] * a[6] * a[15] + a[9] * a[7] * a[14] + a[13] * a[6] * a[11] - a[13] * a[7] * a[10];
+      inv[4] = -a[4] * a[10] * a[15] + a[4] * a[11] * a[14] + a[8] * a[6] * a[15] - a[8] * a[7] * a[14] - a[12] * a[6] * a[11] + a[12] * a[7] * a[10];
+      inv[8] = a[4] * a[9] * a[15] - a[4] * a[11] * a[13] - a[8] * a[5] * a[15] + a[8] * a[7] * a[13] + a[12] * a[5] * a[11] - a[12] * a[7] * a[9];
+      inv[12] = -a[4] * a[9] * a[14] + a[4] * a[10] * a[13] + a[8] * a[5] * a[14] - a[8] * a[6] * a[13] - a[12] * a[5] * a[10] + a[12] * a[6] * a[9];
+      inv[1] = -a[1] * a[10] * a[15] + a[1] * a[11] * a[14] + a[9] * a[2] * a[15] - a[9] * a[3] * a[14] - a[13] * a[2] * a[11] + a[13] * a[3] * a[10];
+      inv[5] = a[0] * a[10] * a[15] - a[0] * a[11] * a[14] - a[8] * a[2] * a[15] + a[8] * a[3] * a[14] + a[12] * a[2] * a[11] - a[12] * a[3] * a[10];
+      inv[9] = -a[0] * a[9] * a[15] + a[0] * a[11] * a[13] + a[8] * a[1] * a[15] - a[8] * a[3] * a[13] - a[12] * a[1] * a[11] + a[12] * a[3] * a[9];
+      inv[13] = a[0] * a[9] * a[14] - a[0] * a[10] * a[13] - a[8] * a[1] * a[14] + a[8] * a[2] * a[13] + a[12] * a[1] * a[10] - a[12] * a[2] * a[9];
+      inv[2] = a[1] * a[6] * a[15] - a[1] * a[7] * a[14] - a[5] * a[2] * a[15] + a[5] * a[3] * a[14] + a[13] * a[2] * a[7] - a[13] * a[3] * a[6];
+      inv[6] = -a[0] * a[6] * a[15] + a[0] * a[7] * a[14] + a[4] * a[2] * a[15] - a[4] * a[3] * a[14] - a[12] * a[2] * a[7] + a[12] * a[3] * a[6];
+      inv[10] = a[0] * a[5] * a[15] - a[0] * a[7] * a[13] - a[4] * a[1] * a[15] + a[4] * a[3] * a[13] + a[12] * a[1] * a[7] - a[12] * a[3] * a[5];
+      inv[14] = -a[0] * a[5] * a[14] + a[0] * a[6] * a[13] + a[4] * a[1] * a[14] - a[4] * a[2] * a[13] - a[12] * a[1] * a[6] + a[12] * a[2] * a[5];
+      inv[3] = -a[1] * a[6] * a[11] + a[1] * a[7] * a[10] + a[5] * a[2] * a[11] - a[5] * a[3] * a[10] - a[9] * a[2] * a[7] + a[9] * a[3] * a[6];
+      inv[7] = a[0] * a[6] * a[11] - a[0] * a[7] * a[10] - a[4] * a[2] * a[11] + a[4] * a[3] * a[10] + a[8] * a[2] * a[7] - a[8] * a[3] * a[6];
+      inv[11] = -a[0] * a[5] * a[11] + a[0] * a[7] * a[9] + a[4] * a[1] * a[11] - a[4] * a[3] * a[9] - a[8] * a[1] * a[7] + a[8] * a[3] * a[5];
+      inv[15] = a[0] * a[5] * a[10] - a[0] * a[6] * a[9] - a[4] * a[1] * a[10] + a[4] * a[2] * a[9] + a[8] * a[1] * a[6] - a[8] * a[2] * a[5];
+      let det = a[0] * inv[0] + a[1] * inv[4] + a[2] * inv[8] + a[3] * inv[12];
+      if (det === 0) return mat4Identity();
+      det = 1.0 / det;
+      for (let i = 0; i < 16; i++) inv[i] *= det;
+      return inv;
+    }
+    function unproject(ndcX, ndcY, viewMat, projMat) {
+      const inv = inverseMat4(mat4Multiply(projMat, viewMat));
+      const clip = [ndcX, ndcY, -1, 1];
+      const x = inv[0] * clip[0] + inv[4] * clip[1] + inv[8] * clip[2] + inv[12] * clip[3];
+      const y = inv[1] * clip[0] + inv[5] * clip[1] + inv[9] * clip[2] + inv[13] * clip[3];
+      const z = inv[2] * clip[0] + inv[6] * clip[1] + inv[10] * clip[2] + inv[14] * clip[3];
+      const w = inv[3] * clip[0] + inv[7] * clip[1] + inv[11] * clip[2] + inv[15] * clip[3];
+      return { x: x / w, y: y / w, z: z / w };
+    }
+    function getRayFromScreen(x, y, viewMat, projMat) {
+      const ndc = screenToNDC(x, y);
+      const pNear = unproject(ndc.x, ndc.y, viewMat, projMat);
+      const pFar = (function () {
+        const clip = [ndc.x, ndc.y, 1, 1];
+        const inv = inverseMat4(mat4Multiply(projMat, viewMat));
+        const x2 = inv[0] * clip[0] + inv[4] * clip[1] + inv[8] * clip[2] + inv[12] * clip[3];
+        const y2 = inv[1] * clip[0] + inv[5] * clip[1] + inv[9] * clip[2] + inv[13] * clip[3];
+        const z2 = inv[2] * clip[0] + inv[6] * clip[1] + inv[10] * clip[2] + inv[14] * clip[3];
+        const w2 = inv[3] * clip[0] + inv[7] * clip[1] + inv[11] * clip[2] + inv[15] * clip[3];
+        return { x: x2 / w2, y: y2 / w2, z: z2 / w2 };
+      })();
+      const dir = normalize(sub(pFar, pNear));
+      return { origin: pNear, dir };
+    }
+    function intersectRayPlane(ray) {
+      const oy = ray.origin.y, dy = ray.dir.y;
+      if (Math.abs(dy) < 1e-6) return null;
+      const t = -oy / dy;
+      if (t < 0) return null;
+      return add(ray.origin, mulS(ray.dir, t));
+    }
+
+    /* Selection and movement */
+    let selectedUnit = null;
+    function selectUnit(u) {
+      if (selectedUnit) selectedUnit.selected = false;
+      selectedUnit = u;
+      if (u) {
+        u.selected = true;
+        computeRange(u);
+      }
+      const info = document.getElementById('selectedInfo');
+      if (u) {
+        info.innerHTML = `<div style="display:flex;align-items:center"><strong style="font-size:14px">${u.type===1?'PRINNY':'UNIT'}</strong><div style="margin-left:auto">(${u.x},${u.z})</div></div>
+    <div style="margin-top:6px">HP: ${u.hp}/${u.maxHp} &nbsp; MP: ${u.mp}/${u.maxMp}</div>`;
+      } else {
+        info.textContent = '— none —';
+      }
+    }
+
+    function computeRange(u) {
+      u.range = [];
+      const q = [{x:u.x,z:u.z,c:0}];
+      const vis = new Set([u.x+u.z*W]);
+      while(q.length){
+        const cur = q.shift();
+        if(cur.c>0) u.range.push(cur.x+cur.z*W);
+        if(cur.c>=u.move) continue;
+        const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+        for(const [dx,dz] of dirs){
+          const nx=cur.x+dx, nz=cur.z+dz, ni=nx+nz*W;
+          if(nx>=0&&nx<W&&nz>=0&&nz<D&&!vis.has(ni)&&(grid[ni].unit===null||grid[ni].unit===u)){
+            vis.add(ni);
+            q.push({x:nx,z:nz,c:cur.c+1});
+          }
+        }
+      }
+    }
+
+    function moveUnit(u,x,z){
+      grid[u.x+u.z*W].unit = null;
+      u.x = x; u.z = z;
+      grid[x+z*W].unit = u;
+      u.range = [];
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const cam = computeCamera();
+      const ray = getRayFromScreen(e.clientX, e.clientY, cam.viewMat, cam.projMat);
+      const hit = intersectRayPlane(ray);
+      if (!hit) return;
+      const wx = hit.x + 7;
+      const wz = hit.z + 7;
+      const tx = Math.floor(wx + wz * 0.5);
+      const tz = Math.floor(wz - wx * 0.5);
+      if(tx>=0&&tx<W&&tz>=0&&tz<D){
+        const cell = grid[tx+tz*W];
+        if(cell.unit && cell.unit.team===0) selectUnit(cell.unit);
+        else if(selectedUnit && selectedUnit.range && selectedUnit.range.includes(tx+tz*W)) moveUnit(selectedUnit, tx, tz);
+      }
+    });
+
+    /* WASD movement */
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    setInterval(()=>{
+      if(!selectedUnit) return;
+      const dir={w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
+      for(const [k,[dx,dz]] of Object.entries(dir)){
+        if(keys[k]){
+          const nx=selectedUnit.x+dx, nz=selectedUnit.z+dz, ni=nx+nz*W;
+          if(nx>=0&&nx<W&&nz>=0&&nz<D&&selectedUnit.range.includes(ni)){
+            moveUnit(selectedUnit,nx,nz);
+            keys[k]=false;
+            break;
+          }
+        }
+      }
+    },160);
+
+    /* Abilities */
+    const ABILITIES = {
+      slash: { mpCost: 10, type: 'single', power: 30 },
+      fireball: { mpCost: 20, type: 'aoe', power: 40, radius: 1 },
+      warp: { mpCost: 15, type: 'move' },
+      geo: { mpCost: 25, type: 'geo' }
+    };
+
+    document.getElementById('ability1').addEventListener('click', () => cast('slash'));
+    document.getElementById('ability2').addEventListener('click', () => cast('fireball'));
+    document.getElementById('ability3').addEventListener('click', () => cast('warp'));
+    document.getElementById('ability4').addEventListener('click', () => cast('geo'));
+
+    function cast(key) {
+      if (!selectedUnit) { alert('Select a unit first'); return; }
+      const a = ABILITIES[key];
+      if (selectedUnit.mp < a.mpCost) { alert('Not enough MP'); return; }
+      selectedUnit.mp -= a.mpCost;
+
+      if (a.type === 'geo') {
+        const sym = 8 + 7 * W;
+        if (grid[sym].geo === 2) {
+          for (let i = 0; i < grid.length; i++) {
+            if (grid[i].geo === 1) {
+              grid[i].geo = 0;
+              if (grid[i].unit) grid[i].unit.hp -= 50;
+            }
+          }
+          grid[sym].geo = 0;
+        }
+        return;
+      }
+
+      // For others, need target
+      const lastMouse = { x: canvas.width / 2, y: canvas.height / 2 };
+      const cam = computeCamera();
+      const ray = getRayFromScreen(lastMouse.x, lastMouse.y, cam.viewMat, cam.projMat);
+      const hit = intersectRayPlane(ray);
+      if (!hit) return alert('Hover a tile to target');
+      const wx = hit.x + 7;
+      const wz = hit.z + 7;
+      const gx = Math.floor(wx + wz * 0.5), gz = Math.floor(wz - wx * 0.5);
+      if (a.type === 'single') {
+        const target = units.find(u => u.x === gx && u.z === gz);
+        if (!target) return alert('No unit on target tile');
+        applyDamage(target, a.power);
+      } else if (a.type === 'aoe') {
+        spawnAOE(gx, gz, a.radius);
+        for (const u of units) {
+          const dx = Math.abs(u.x - gx), dz = Math.abs(u.z - gz);
+          const dist = Math.max(dx, dz);
+          if (dist <= a.radius) applyDamage(u, a.power);
+        }
+      } else if (a.type === 'move') {
+        const allies = units.filter(u => u.team === 0 && u !== selectedUnit);
+        if (allies.length === 0) return alert('No ally to warp');
+        const target = allies[0];
+        moveUnit(target, gx, gz);
+      }
+      updateLabels(cam.viewMat, cam.projMat);
+    }
+
+    /* Lift/Throw */
+    document.getElementById('liftBtn').addEventListener('click', () => {
+      if (!selectedUnit || selectedUnit.carrying) return;
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      for (const [dx,dz] of dirs) {
+        const tx = selectedUnit.x + dx, tz = selectedUnit.z + dz, ti = tx + tz * W;
+        if (tx >= 0 && tx < W && tz >= 0 && tz < D && grid[ti].unit && grid[ti].unit.team !== selectedUnit.team) {
+          selectedUnit.carrying = true;
+          selectedUnit.lifted = grid[ti].unit;
+          selectedUnit.lifted.visible = false;
+          grid[ti].unit = null;
+          break;
+        }
+      }
+    });
+
+    document.getElementById('throwBtn').addEventListener('click', () => {
+      if (!selectedUnit || !selectedUnit.carrying) return;
+      const tx = selectedUnit.x + Math.floor(Math.random() * 5) - 2;
+      const tz = selectedUnit.z + Math.floor(Math.random() * 5) - 2;
+      const ti = tx + tz * W;
+      if (tx >= 0 && tx < W && tz >= 0 && tz < D && !grid[ti].unit) {
+        const l = selectedUnit.lifted;
+        l.x = tx; l.z = tz; l.visible = true;
+        grid[ti].unit = l;
+        selectedUnit.carrying = false; selectedUnit.lifted = null;
+        if (l.type === 1) explode();
+      }
+    });
+
+    /* Damage and floats */
+    function applyDamage(unit, dmg) {
+      unit.hp = Math.max(0, unit.hp - dmg);
+      spawnDamageFloat({ x: unit.x, y: 1.6, z: unit.z }, dmg);
+      if (unit.hp === 0) {
+        unit.color = { r: 0.5, g: 0.5, b: 0.5 };
+      }
+    }
+
+    function spawnDamageFloat(worldPos, dmg) {
+      const div = document.createElement('div');
+      div.className = 'damage-float';
+      div.style.left = '0px'; div.style.top = '0px';
+      div.textContent = '-' + dmg;
+      document.body.appendChild(div);
+      const start = performance.now();
+      const dur = 900;
+      function step(now) {
+        const t = Math.min(1, (now - start) / dur);
+        const cam = computeCamera();
+        const screen = projectToScreen({ x: worldPos.x, y: worldPos.y + t * 0.6, z: worldPos.z }, cam.viewMat, cam.projMat);
+        div.style.left = screen.x + 'px';
+        div.style.top = screen.y + 'px';
+        div.style.opacity = String(1 - t);
+        div.style.transform = `translate(-50%,-50%) scale(${1 - 0.25 * t}) translateY(${-t * 30}px)`;
+        if (t < 1) requestAnimationFrame(step); else div.remove();
+      }
+      requestAnimationFrame(step);
+    }
+
+    function spawnAOE(cx, cz, radius) {
+      const div = document.createElement('div');
+      div.style.position = 'absolute';
+      div.style.pointerEvents = 'none';
+      div.style.borderRadius = '50%';
+      div.style.background = 'rgba(255,95,58,0.25)';
+      document.body.appendChild(div);
+      const start = performance.now();
+      function step(now) {
+        const t = (now - start) / 600;
+        const cam = computeCamera();
+        const p1 = projectToScreen({ x: (cx - radius), y: 0.01, z: (cz - radius) }, cam.viewMat, cam.projMat);
+        const p2 = projectToScreen({ x: (cx + radius), y: 0.01, z: (cz + radius) }, cam.viewMat, cam.projMat);
+        const w = Math.abs(p2.x - p1.x);
+        div.style.left = (p1.x + w * 0.5) + 'px';
+        div.style.top = (p1.y + Math.abs(p2.y - p1.y) * 0.5) + 'px';
+        div.style.width = w + 'px';
+        div.style.height = w + 'px';
+        div.style.transform = 'translate(-50%,-50%)';
+        div.style.opacity = String(Math.max(0, 0.6 - t));
+        if (t < 1) requestAnimationFrame(step); else div.remove();
+      }
+      requestAnimationFrame(step);
+    }
+
+    function explode() {
+      const p = document.getElementById('prinnyText');
+      p.textContent = 'DOOD!!! BOOM!';
+      p.style.color = '#ff0000';
+      setTimeout(() => { p.textContent = 'PRINNY SQUAD DOOD!'; p.style.color = '#ff6b9d'; }, 1000);
+    }
+
+    /* Camera and projection */
+    function computeCamera() {
+      const eye = {
+        x: camTarget.x + camDistance * Math.cos(camElevation) * Math.sin(camAzimuth),
+        y: camTarget.y + camDistance * Math.sin(camElevation),
+        z: camTarget.z + camDistance * Math.cos(camElevation) * Math.cos(camAzimuth)
+      };
+      const up = { x: 0, y: 1, z: 0 };
+      const viewMat = mat4LookAt(eye, camTarget, up);
+      const aspect = canvas.clientWidth / canvas.clientHeight;
+      const projMat = mat4Perspective(Math.PI / 4, aspect, 0.1, 200);
+      return { eye, viewMat, projMat };
+    }
+
+    function projectToScreen(pos, viewMat, projMat) {
+      const mvp = mat4Multiply(projMat, viewMat);
+      const p = transformPoint(mvp, pos);
+      const rect = canvas.getBoundingClientRect();
+      return { x: (p.x * 0.5 + 0.5) * rect.width + rect.left, y: (-p.y * 0.5 + 0.5) * rect.height + rect.top, z: p.z };
+    }
+
+    function updateLabels(viewMat, projMat) {
+      for (const u of units) {
+        if (!u.visible) continue;
+        const worldPos = { x: u.x, y: 1.6, z: u.z };
+        const screen = projectToScreen(worldPos, viewMat, projMat);
+        if (u.labelEl) {
+          u.labelEl.style.left = screen.x + 'px';
+          u.labelEl.style.top = screen.y + 'px';
+          const hpEl = u.labelEl.querySelector('.hp-inner');
+          const mpEl = u.labelEl.querySelector('.mp-inner');
+          const posText = u.labelEl.querySelector('.small');
+          if (hpEl) hpEl.style.width = Math.max(0, (u.hp / u.maxHp * 100)).toFixed(0) + '%';
+          if (mpEl) mpEl.style.width = Math.max(0, (u.mp / u.maxMp * 100)).toFixed(0) + '%';
+          if (posText) posText.textContent = `(${u.x}, ${u.z})`;
+          u.labelEl.style.display = (screen.z < 1) ? 'block' : 'none';
+        }
+      }
+    }
+
+    /* Render loop */
+    let lastTime = performance.now();
+    function render(now) {
+      const dt = now - lastTime; lastTime = now;
+      resizeCanvas();
+
+      gl.clearColor(0.047, 0.047, 0.063, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      const cam = computeCamera();
+      gl.useProgram(program);
+      gl.uniformMatrix4fv(uniforms.mvp, false, mat4Multiply(cam.projMat, cam.viewMat));
+
+      gl.bindVertexArray(null); // No VAO for simplicity
+
+      // Draw grid
+      const max = W * D * 3;
+      const inst = new Float32Array(max);
+      const col = new Float32Array(max * 4 / 3);
+      let cnt = 0;
+      for (let x = 0; x < W; x++) for (let z = 0; z < D; z++) {
+        const wx = (x - z) * 0.5 - 4;
+        const wz = (x + z) * 0.5 - 3;
+        const c = grid[x + z * W].geo === 1 ? [1, 0, 0, 0.7] : grid[x + z * W].geo === 2 ? [0, 0, 1, 0.9] : [0.2, 0.2, 0.25, 0.9];
+        inst[cnt * 3] = wx; inst[cnt * 3 + 1] = 0; inst[cnt * 3 + 2] = wz;
+        col[cnt * 4] = c[0]; col[cnt * 4 + 1] = c[1]; col[cnt * 4 + 2] = c[2]; col[cnt * 4 + 3] = c[3];
+        cnt++;
+      }
+
+      // Range
+      if (selectedUnit && selectedUnit.range) {
+        for (const i of selectedUnit.range) {
+          const x = i % W, z = Math.floor(i / W);
+          const wx = (x - z) * 0.5 - 4;
+          const wz = (x + z) * 0.5 - 3;
+          inst[cnt * 3] = wx; inst[cnt * 3 + 1] = 0.05; inst[cnt * 3 + 2] = wz;
+          col[cnt * 4] = 0; col[cnt * 4 + 1] = 1; col[cnt * 4 + 2] = 1; col[cnt * 4 + 3] = 0.4;
+          cnt++;
+        }
+      }
+
+      // Units
+      for (const u of units) {
+        if (!u.visible) continue;
+        const wx = (u.x - u.z) * 0.5 - 4;
+        const wz = (u.x + u.z) * 0.5 - 3;
+        const h = u.carrying ? 1.4 : 0.7;
+        let c = u.team === 0 ? [0, 1, 1, 1] : u.type === 1 ? [1, 0.8, 0, 1] : [1, 0, 0, 1];
+        if (u.selected) c[3] = 0.7 + Math.sin(now * 0.008) * 0.3;
+        inst[cnt * 3] = wx; inst[cnt * 3 + 1] = h; inst[cnt * 3 + 2] = wz;
+        col[cnt * 4] = c[0]; col[cnt * 4 + 1] = c[1]; col[cnt * 4 + 2] = c[2]; col[cnt * 4 + 3] = c[3];
+        cnt++;
+      }
+
+      // Upload and draw
+      gl.bindBuffer(gl.ARRAY_BUFFER, instVBO);
+      gl.bufferData(gl.ARRAY_BUFFER, inst.subarray(0, cnt * 3), gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(attribs.offset, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(attribs.offset);
+      gl.vertexAttribDivisor(attribs.offset, 1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, colVBO);
+      gl.bufferData(gl.ARRAY_BUFFER, col.subarray(0, cnt * 4), gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(attribs.color, 4, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(attribs.color);
+      gl.vertexAttribDivisor(attribs.color, 1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+      gl.vertexAttribPointer(attribs.pos, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(attribs.pos);
+
+      gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, cnt);
+
+      updateLabels(cam.viewMat, cam.projMat);
+      document.getElementById('debug').textContent = `Units: ${units.length}\nSelected: ${selectedUnit ? (selectedUnit.type === 1 ? 'PRINNY' : 'UNIT') : 'none'}\nCamera dist: ${camDistance.toFixed(2)}`;
+
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+    /* Keyboard shortcuts */
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') cast('slash');
+      if (e.key === '2') cast('fireball');
+      if (e.key === '3') cast('warp');
+      if (e.key === '4') cast('geo');
+    });
+  </script>
+</body>
+</html>

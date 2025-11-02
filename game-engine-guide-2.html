@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Advanced Game Engine Patterns — JRPG · RTS · SRPG · Action RPG · Platformer MMO · MMO</title>
+    <style>
+        :root {
+            --bg: #000;
+            --fg: #e6e6e6;
+            --accent: #7fffd4;
+            --muted: #9aa0a6;
+            --panel: #071018;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg)
+        }
+
+        /* CAD grid background: subtle white lines */
+        body {
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+            padding: 28px 36px;
+        }
+
+        header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+            margin-bottom: 18px
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 6px 0
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 14px 0 6px 0
+        }
+
+        h3 {
+            font-size: 13px;
+            margin: 10px 0
+        }
+
+        p {
+            color: var(--muted);
+            margin: 8px 0
+        }
+
+        .row {
+            display: flex;
+            gap: 18px
+        }
+
+        .col {
+            flex: 1;
+            min-width: 260px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent);
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.04)
+        }
+
+        code,
+        pre {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 6px;
+            border-radius: 6px;
+            color: var(--fg);
+            font-size: 12px
+        }
+
+        pre {
+            overflow: auto;
+            padding: 12px
+        }
+
+        .pattern {
+            border-left: 3px solid rgba(127, 255, 212, 0.12);
+            padding-left: 10px;
+            margin: 8px 0
+        }
+
+        .chip {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            font-size: 11px;
+            margin-right: 6px
+        }
+
+        footer {
+            margin-top: 22px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            padding-top: 12px;
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        .toc {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px
+        }
+
+        details {
+            margin: 8px 0
+        }
+
+        /* responsive */
+        @media (max-width:900px) {
+            .row {
+                flex-direction: column
+            }
+        }
+
+        .diagram {
+            background: transparent;
+            padding: 8px;
+            border: 1px dashed rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            margin: 8px 0
+        }
+
+        .note {
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .section-intro {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 6px
+        }
+
+        .case-study {
+            margin-top: 12px;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.01)
+        }
+
+        .tip {
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+            margin: 8px 0;
+            color: var(--fg)
+        }
+    </style>
+    <!-- mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+</head>
+
+<body>
+    <header>
+        <h1>Advanced Game Engine Patterns — A Programmer's Comprehensive Guide</h1>
+        <div class="toc">
+            <span class="chip">Patterns</span>
+            <span class="chip">ECS</span>
+            <span class="chip">Network</span>
+            <span class="chip">Authoritative</span>
+            <span class="chip">Interpolation</span>
+            <span class="chip">Lockstep</span>
+            <span class="chip">Behavior Trees</span>
+            <span class="chip">Event Bus</span>
+            <span class="chip">GOAP</span>
+            <span class="chip">CRDTs</span>
+            <span class="chip">PBR</span>
+            <span class="chip">Compute Shaders</span>
+        </div>
+        <p class="section-intro">This single-file HTML is an advanced, patterns-first guide for building sophisticated
+            game engines across six genres: JRPG, RTS, SRPG, Action RPG, Platformer MMO, and broad MMOs. Enhanced with
+            detailed explanations, improved Mermaid diagrams, professional tips, and contextual case studies from
+            industry examples like StarCraft, Final Fantasy, Fire Emblem, Diablo, MapleStory, and World of Warcraft.
+            Read, copy, and adapt for professional-grade development.</p>
+    </header>
+
+    <section>
+        <h2>Overview — Core Architecture (Common to All Genres)</h2>
+        <div class="row">
+            <div class="col">
+                <p class="note">Modern game engines are modular, scalable systems designed for performance,
+                    maintainability, and extensibility. This canonical breakdown includes advanced sub-systems for
+                    handling large-scale simulations, multi-threading, and cross-platform compatibility. Emphasize
+                    data-oriented design for high entity counts and leverage hardware acceleration where possible.</p>
+                <div class="pattern">
+                    <h3>Canonical Modules (Expanded)</h3>
+                    <ul>
+                        <li><strong>Core Loop & Scheduler</strong>: Manages variable/fixed updates, multi-threaded job
+                            systems (e.g., using Intel TBB or custom fiber-based scheduling), and delta-time handling
+                            for smooth frame rates. Supports pausing, time dilation, and replay modes.</li>
+                        <li><strong>Entity System</strong>: Hybrid ECS with archetypes for cache efficiency; integrates
+                            with scene graphs for hierarchical transforms. Handles entity pooling to minimize
+                            allocations in high-churn scenarios.</li>
+                        <li><strong>Rendering</strong>: Multi-pass pipeline with deferred/forward+ rendering, GPU-driven
+                            rendering for massive draw calls, and support for Vulkan/OpenGL/DirectX. Includes LOD
+                            management, occlusion culling, and compute-based particle systems.</li>
+                        <li><strong>Physics & Collision</strong>: Integrates Bullet or PhysX with custom extensions for
+                            deterministic fixed-point math. Supports continuous collision detection (CCD), ragdolls, and
+                            soft-body simulations.</li>
+                        <li><strong>Audio Subsystem</strong>: Spatial audio with HRTF, occlusion filtering, and
+                            procedural generation. Uses FMOD or Wwise for middleware, with custom DSP effects for
+                            real-time modulation.</li>
+                        <li><strong>Resource & Asset Manager</strong>: Asynchronous streaming, virtual file systems,
+                            hot-reloading, and asset dependency graphs. Handles compression (Zstd/LZ4) and GPU texture
+                            streaming.</li>
+                        <li><strong>Input & UI</strong>: Multi-device support (controller remapping, haptic feedback),
+                            immediate-mode GUI for tools, and retained-mode for in-game HUDs. Integrates with ImGui or
+                            custom Slate-like systems.</li>
+                        <li><strong>Gameplay</strong>: Data-driven skill/effect systems with visual scripting (e.g.,
+                            Blueprint-like), advanced AI (behavior trees + utility systems), and modular quest
+                            frameworks.</li>
+                        <li><strong>Networking & Persistence</strong>: UDP/TCP hybrid protocols, entity replication with
+                            delta compression, and database integration (MongoDB/PostgreSQL) for persistent worlds.
+                            Includes anti-cheat measures like server-side validation.</li>
+                        <li><strong>Tools</strong>: In-engine editor with WYSIWYG, asset pipelines (FBX/GLTF importers),
+                            profiling tools (Tracy/RenderDoc integration), and CI/CD for builds.</li>
+                    </ul>
+                </div>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        subgraph Client
+                        A[Input Handler] --> B[Local Simulation & Prediction]
+                        B --> C[Renderer Pipeline]
+                        B --> D[Client-Side Effects & Interpolation]
+                        C --> E[Post-Processing & Output]
+                        end
+                        subgraph Server
+                        S[Authoritative State Manager] --> M[Persistence DB]
+                        S --> N[Multi-Threaded Simulation]
+                        N --> O[Anti-Cheat Validator]
+                        end
+                        B -->|Commands (UDP)| S
+                        S -->|Delta Snapshots (Compressed)| D
+                        C -->|Occasional Sync| S
+                        classDef client fill:#022,stroke:#0f0
+                        class A,B,C,D,E client
+                    </div>
+                </div>
+                <p class="note">This enhanced diagram shows the command-snapshot flow with added layers for prediction,
+                    interpolation, and anti-cheat—critical for networked games. Use delta compression to reduce
+                    bandwidth by sending only changes since last acknowledged snapshot.</p>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Implement a job system early for parallelizing updates (e.g.,
+                    physics, AI). Avoid lock contention by using lock-free data structures like ring buffers for
+                    inter-thread communication. From experience in large teams, this scales better than naive threading.
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Key Design Patterns (Expanded)</h3>
+                <details open>
+                    <summary><strong>Entity Component System (ECS)</strong></summary>
+                    <p class="note">Data-oriented for cache locality; use archetypes or sparse sets for queries. Ideal
+                        for RTS/MMOs with 10k+ entities. Integrate with job systems for parallel updates. Avoid
+                        over-engineering—start with simple component arrays.</p>
+                    <pre>// Advanced ECS example (pseudocode)
+struct Position { float x,y,z; };
+struct Velocity { float dx,dy,dz; };
+Archetype movement = { Position, Velocity };
+Query q = world.query&lt;Position, Velocity&gt;();
+for(auto chunk : q) {
+  parallel_for(chunk.begin(), chunk.end(), [](Entity e) {
+    e.get&lt;Position&gt;() += e.get&lt;Velocity&gt;() * dt;
+  });
+}</pre>
+                </details>
+                <details>
+                    <summary><strong>Scene Graph / Node Hierarchy</strong></summary>
+                    <p class="note">For complex hierarchies like cutscenes or UI. Use dirty flags for transform
+                        propagation to minimize computations. Combine with ECS for hybrid efficiency in JRPGs/Action
+                        RPGs.</p>
+                </details>
+                <details>
+                    <summary><strong>Command Pattern</strong></summary>
+                    <p class="note">Serializable actions for networking/replays. Add undo/redo support for editors. In
+                        lockstep, ensure commands are deterministic and idempotent.</p>
+                </details>
+                <details>
+                    <summary><strong>Event Bus / Observer</strong></summary>
+                    <p class="note">Decoupled messaging; use priority queues to handle order. For performance, batch
+                        events and process in fixed updates to avoid recursion explosions.</p>
+                </details>
+                <details>
+                    <summary><strong>Dependency Injection (New)</strong></summary>
+                    <p class="note">For modular testing and hot-swapping subsystems (e.g., mock network for offline
+                        dev). Use interfaces for core services like rendering or audio.</p>
+                </details>
+                <details>
+                    <summary><strong>Factory Pattern (New)</strong></summary>
+                    <p class="note">Centralized entity creation; register factories for data-driven spawning. Useful for
+                        modding support in MMOs.</p>
+                </details>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Beware Singleton anti-pattern for global state—use context
+                    objects instead. In Unity/Unreal projects, we've seen singletons cause hard-to-debug issues in
+                    multi-scene loads.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- JRPG -->
+    <section>
+        <h2>JRPG (Turn-Based, Narrative Focused)</h2>
+        <p class="section-intro">Advanced JRPG engines handle intricate storytelling, complex battle mechanics, and
+            data-driven content. Focus on scriptability, save state integrity, and emotional pacing. Low entity counts
+            allow for rich state machines but demand robust error handling for long play sessions.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Recommended Architecture (Expanded)</h3>
+                <ul>
+                    <li>Hybrid scene graph + ECS: Nodes for cinematic hierarchies, ECS for status effects and inventory
+                        items. Support visual novel-style branching dialogues with Lua/JSON scripting.</li>
+                    <li>Finite State Machine (FSM) for battles: Multi-layered states (player turn, enemy AI, resolution)
+                        with interruptible animations and rollback for previews.</li>
+                    <li>Data-driven abilities: Use entity-component for effects (e.g., DoT, buffs) with resolver chains
+                        for interactions like elemental weaknesses.</li>
+                    <li>Asset streaming: Preload narrative assets; use encrypted saves with checksums for anti-tampering
+                        in single-player.</li>
+                    <li>Advanced: Integrate narrative tools like Ink or Yarn for dialogue, with variable interpolation
+                        for dynamic storytelling.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        sequenceDiagram
+                        participant PlayerUI
+                        participant EngineCore
+                        participant BattleFSM
+                        participant EffectResolver
+                        participant AIManager
+                        PlayerUI->>EngineCore: Select Action (e.g., Attack)
+                        EngineCore->>BattleFSM: Enqueue Command
+                        BattleFSM->>AIManager: Compute Enemy Responses
+                        AIManager-->>BattleFSM: Return AI Commands
+                        BattleFSM->>EffectResolver: Collect & Resolve All Intents
+                        EffectResolver-->>EngineCore: Apply Changes (Damage, Buffs)
+                        EngineCore->>PlayerUI: Update HUD & Animate
+                        Note right of EffectResolver: Handle Priorities, Immunities, Chains
+                    </div>
+                </div>
+                <p class="note">Improved sequence shows AI integration and multi-phase resolution—key for balanced,
+                    predictable combat.</p>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use event sourcing for battle logs to enable perfect replays and
+                    debugging. In Final Fantasy development, this helped isolate rare bugs in long sessions.
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns + Use Cases (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Turn Queue with Command Replay</strong>
+                    <p class="note">Commands as immutable structs; sort by speed/agility. Add preview simulation for
+                        player decision-making. For advanced, implement time manipulation effects (e.g., haste) that
+                        alter queue order dynamically.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Effect Resolution Engine</strong>
+                    <p class="note">Multi-pass: Intent collection, interaction resolution (counters, reflects),
+                        commitment. Use visitor pattern for effect visitors on entities. Handles complex chains like
+                        status procs triggering others.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Behavior Trees for Narrative AI (New)</strong>
+                    <p class="note">For NPC dialogues and quest progression; composable nodes for conditions/actions.
+                        Integrates with FSM for seamless transitions.</p>
+                </div>
+                <h3>Code Snippet — Advanced Battle Resolution</h3>
+                <pre>// pseudocode
+struct Command { EntityId target; EffectType type; Params params; int priority; };
+void resolveTurn(vector&lt;Command&gt; commands) {
+  sort(commands.begin(), commands.end(), [](const Command& a, const Command& b) { return a.priority > b.priority; });
+  for(auto& cmd : commands) {
+    auto effects = computeInteractions(cmd); // Handle counters, immunities
+    for(auto& eff : effects) applyEffect(eff);
+  }
+  postResolveCleanup(); // e.g., remove expired buffs
+}</pre>
+                <div class="case-study">
+                    <h4>Case Study: Final Fantasy Series</h4>
+                    <p>Square Enix's engines evolved from custom 2D to Luminous Engine for modern titles. Key insight:
+                        Troubled developments (e.g., FFXV) stemmed from engine switches mid-project; lesson: Commit to a
+                        stable pipeline early. Narrative focus required tight integration between cutscene tools and
+                        gameplay loops.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Balance randomness with player agency—use seeded RNG for
+                    reproducible outcomes. Persona series excels at this for emotional impact without frustration.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- RTS -->
+    <section>
+        <h2>RTS (Large Entity Counts, Real-Time, Authoritative Determinism)</h2>
+        <p class="section-intro">Advanced RTS engines prioritize scalability, deterministic simulations for fair
+            multiplayer, and efficient pathfinding/AI. Handle 10k+ units with optimized data structures and
+            multi-threading.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Recommended Architecture (Expanded)</h3>
+                <ul>
+                    <li>Pure ECS core: Components for position, health, orders; systems for movement, combat, resource
+                        gathering. Use job parallelism for updates.</li>
+                    <li>Lockstep networking: Fixed-tick simulation, command broadcasting. Add checksums for desync
+                        detection and auto-resync.</li>
+                    <li>State management: Delta compression for replays/spectators; use bit-packing for entity states to
+                        minimize storage.</li>
+                    <li>Advanced: Integrate flow fields for group pathfinding and boid-like flocking to avoid unit
+                        clumping.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        C[Player Inputs] -->|Frame N| L[Lockstep Host]
+                        L -->|Broadcast Commands| P1[Client 1]
+                        L -->|Broadcast Commands| P2[Client 2]
+                        P1 -->|Apply Deterministic Sim| S1[Local State]
+                        P2 -->|Apply Deterministic Sim| S2[Local State]
+                        L -->|Periodic Checksums| P1
+                        L -->|Periodic Checksums| P2
+                        S1 -->|If Desync: Resync| L
+                        classDef srv fill:#022,stroke:#0f0
+                        class L srv
+                    </div>
+                </div>
+                <p class="note">Enhanced with desync handling—vital for long matches.</p>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use fixed-point arithmetic for cross-platform determinism.
+                    StarCraft's desync issues taught us to log all RNG calls.
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns + Use Cases (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Lockstep + Determinism</strong>
+                    <p class="note">Commands only; seeded RNG. Advanced: Hybrid with server authority for anti-cheat.
+                        Handle variable latency with input buffering.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Spatial Partitioning</strong>
+                    <p class="note">Dynamic grids or BVH for queries. Optimize with SIMD for neighbor checks in large
+                        battles.</p>
+                </div>
+                <div class="pattern">
+                    <strong>GOAP for Unit AI (New)</strong>
+                    <p class="note">Goal-oriented planning for complex behaviors like scouting or harassment.</p>
+                </div>
+                <h3>Network Design (Expanded)</h3>
+                <p class="note">UDP for speed; reliability layer for critical packets. Use prediction for UI
+                    responsiveness.</p>
+                <pre>// Advanced lockstep (simplified)
+while(running) {
+  gatherLocalInputs();
+  broadcastAndWaitForAll(inputs, tick);
+  if (checksumMismatch()) requestResync();
+  simulateTick(); // Fixed math, no floats
+}</pre>
+                <div class="case-study">
+                    <h4>Case Study: StarCraft II (Blizzard)</h4>
+                    <p>Custom engine with lockstep for eSports fairness. Challenges: Handling massive unit counts;
+                        solution: Optimized ECS and spatial hashing. Stormgate (by ex-Blizzard devs) uses Unreal 5 for
+                        modern RTS, adding co-op features.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Profile pathfinding heavily—Age of Empires used hierarchical A*
+                    for performance.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- SRPG -->
+    <section>
+        <h2>SRPG / Tactical (Grid-Based, Turn + Movement)</h2>
+        <p class="section-intro">Blend JRPG depth with tactical positioning. Advanced features include height/cover
+            mechanics, procedural maps, and AI planning.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Key Systems (Expanded)</h3>
+                <ul>
+                    <li>Grid system: Hex/square with cost maps; precompute visibility/reachability graphs for speed.
+                    </li>
+                    <li>Resolution: Probabilistic hits with modifiers (flank, elevation). Support undo previews.</li>
+                    <li>Persistence: Serialized unit trees for progression; integrate with narrative branches.</li>
+                    <li>Advanced: Procedural generation for replayability using Perlin noise for terrain.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        A[Grid Map] --> B[Cost & Visibility Map]
+                        C[Unit Entity] --> D[Hierarchical A* Pathfinder]
+                        D -->|Optimal Path| E[Movement Reservation System]
+                        E --> F[Conflict Resolver]
+                        F -->|Validated Move| G[Action Executor]
+                        Note right of F: Handle Multi-Unit Collisions
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Movement as Reservation</strong>
+                    <p class="note">Temporal reservations to simulate simultaneous moves; resolve conflicts with
+                        priority or auctions.</p>
+                </div>
+                <div class="pattern">
+                    <strong>GOAP for Tactical AI</strong>
+                    <p class="note">Plans multi-turn strategies; use Monte Carlo for uncertainty.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Utility AI (New)</strong>
+                    <p class="note">Scores actions based on heuristics for dynamic enemy behavior.</p>
+                </div>
+                <div class="case-study">
+                    <h4>Case Study: Fire Emblem Series (Intelligent Systems)</h4>
+                    <p>Custom engines with grid focus; evolution to 3D in later titles. Tactics Ogre influenced
+                        isometric views; key: Balanced permadeath with deep class systems.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use alpha-beta pruning in AI minimax for deeper search without
+                    perf hit.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- Action RPG -->
+    <section>
+        <h2>Action RPG (Real-Time, Physics, Responsive Inputs)</h2>
+        <p class="section-intro">Emphasize fluidity, combo systems, and loot economies. Advanced: Procedural generation,
+            dynamic difficulty.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Recommended Architecture (Expanded)</h3>
+                <ul>
+                    <li>Character controllers: State machines with root motion; networked with lag compensation.</li>
+                    <li>Hit detection: Animation-driven capsules with swept tests for fast moves.</li>
+                    <li>Animation: Blend spaces, IK for aiming; procedural for procedural weapons.</li>
+                    <li>Advanced: Voxel-based destruction or cloth sim for immersive combat.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        sequenceDiagram
+                        participant PlayerInput
+                        participant ClientSim
+                        participant ServerAuth
+                        participant Reconciliation
+                        PlayerInput->>ClientSim: Immediate Action (e.g., Dodge)
+                        ClientSim->>ServerAuth: Send Command w/ Timestamp
+                        ClientSim->>ClientSim: Predict & Render Locally
+                        ServerAuth->>ClientSim: Authoritative Snapshot
+                        ClientSim->>Reconciliation: Detect Mismatch
+                        Reconciliation->>ClientSim: Smooth Blend to Correct State
+                        Note right of Reconciliation: Use Hermite Interpolation
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Client-Side Prediction + Reconciliation</strong>
+                    <p class="note">Predict physics; rewind/replay on mismatch. Advanced: Entity interpolation for
+                        smooth others.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Animation-Driven Hitboxes</strong>
+                    <p class="note">Frame events trigger checks; use raycasts for projectiles.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Procedural Loot System (New)</strong>
+                    <p class="note">Seed-based generation with rarity curves.</p>
+                </div>
+                <div class="case-study">
+                    <h4>Case Study: Diablo Series (Blizzard)</h4>
+                    <p>Custom engine for isometric action; Diablo IV uses advanced networking for seamless co-op.
+                        Lesson: Loot systems drive retention—balance RNG with pity timers.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use hit-stop (frame freezes) for impact feel, as in Zelda.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- Platformer MMO -->
+    <section>
+        <h2>Platformer MMO (Side-Scrolling + Many Concurrent Players)</h2>
+        <p class="section-intro">Combine precision jumping with social scaling. Advanced: Seamless world loading, player
+            economies.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Recommended Architecture (Expanded)</h3>
+                <ul>
+                    <li>Zoned servers: Handover logic for cross-zone travel; instance dungeons for high-load events.
+                    </li>
+                    <li>Snapshots: Variable frequency based on proximity; compress with quantization.</li>
+                    <li>Hybrid sim: Client physics for jumps, server for collisions/anti-cheat.</li>
+                    <li>Advanced: Procedural platforms with seed sharing for consistent worlds.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        ClientA -->|High-Freq Updates| ZS[Zone Server]
+                        ClientB -->|High-Freq Updates| ZS
+                        ZS -->|Broadcast Nearby Entities| ClientA
+                        ZS -->|Broadcast Nearby Entities| ClientB
+                        ZS -->|Handover on Zone Cross| GS[Global Server]
+                        GS -->|Sync Player Data| DB[Persistence]
+                        Note right of ZS: Interest Mgmt with AOI
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Interest Management</strong>
+                    <p class="note">AOI (Area of Interest) grids; dynamic LOD for distant players (simplified
+                        animations).</p>
+                </div>
+                <div class="pattern">
+                    <strong>Hybrid Physics</strong>
+                    <p class="note">Client predicts jumps; server validates landings to prevent exploits.</p>
+                </div>
+                <div class="pattern">
+                    <strong>CRDTs for Shared State (New)</strong>
+                    <p class="note">For collaborative building without locks.</p>
+                </div>
+                <div class="case-study">
+                    <h4>Case Study: MapleStory (Nexon)</h4>
+                    <p>Custom engine for 2D MMO; handles millions with zoned servers. Rollbacks for hacks; lesson:
+                        Robust DB for item economies.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Tune jump arcs with Bezier curves for feel; test with high
+                    latency.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- MMO -->
+    <section>
+        <h2>MMO (Massive Concurrency, Persistence, Economies)</h2>
+        <p class="section-intro">Scale to thousands; focus on reliability, monetization, and community tools.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Recommended Architecture (Expanded)</h3>
+                <ul>
+                    <li>Microservices: Separate auth, zones, economy; use Kafka for event buses.</li>
+                    <li>Sharding: Dynamic load balancing; CRDTs for conflict-free merges.</li>
+                    <li>Tools: Admin dashboards, A/B testing frameworks.</li>
+                    <li>Advanced: ML for bot detection and dynamic content.</li>
+                </ul>
+
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        A[Login Client] --> B[Auth Microservice]
+                        B --> C[Zone Matchmaker]
+                        C --> D[Sharded Zone Servers]
+                        D --> E[Economy Service]
+                        D --> F[Chat & Social Service]
+                        D --> G[Persistence Layer (DB + Cache)]
+                        G --> H[Analytics Pipeline]
+                        Note right of D: Load Balancing & Sharding
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Patterns (Expanded)</h3>
+                <div class="pattern">
+                    <strong>Event Sourcing + CRDTs</strong>
+                    <p class="note">Logs for audits; CRDTs for guild states.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Microservices & Pipelines</strong>
+                    <p class="note">Kubernetes for scaling; CI for live patches.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Anti-Cheat Layers (New)</strong>
+                    <p class="note">Behavioral analysis + encrypted packets.</p>
+                </div>
+                <div class="case-study">
+                    <h4>Case Study: World of Warcraft (Blizzard)</h4>
+                    <p>Custom engine with phased zones; EVE Online uses Python for logic. Lesson: Persistent worlds need
+                        robust backups—WoW's auction house exploits cost millions.</p>
+                </div>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use eventual consistency for non-critical data to reduce latency.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <section>
+        <h2>Cross-Genre Patterns & Utilities</h2>
+        <div class="row">
+            <div class="col">
+                <h3>Common Engineering Concerns (Expanded)</h3>
+                <ul>
+                    <li>Determinism: Fixed-point, seeded RNG; test cross-platform.</li>
+                    <li>Serialization: Protobuf/FlatBuffers for efficiency; versioned schemas.</li>
+                    <li>Tools: Visual debuggers, scriptable consoles.</li>
+                    <li>Profiling: Integrate telemetry for live monitoring.</li>
+                    <li>Advanced: Containerization for servers; CI/CD with Unity/Unreal builds.</li>
+                </ul>
+                <h3>Systems Diagrams (Expanded)</h3>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        subgraph Client
+                        I[UI Layer] --> R[Renderer]
+                        P[Prediction Engine] --> R
+                        P --> C[Compression]
+                        end
+                        subgraph Network
+                        C --> T[Transport (UDP/TCP)]
+                        T --> S[Server]
+                        end
+                        R -->|Delta Snapshot| S
+                        S -->|Validation| P
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Testing & QA Patterns (Expanded)</h3>
+                <ul>
+                    <li>Unit tests for sim logic; integration for networking.</li>
+                    <li>Fuzzing for inputs; chaos engineering for servers.</li>
+                    <li>Replay systems: Compressed command logs with visual playback.</li>
+                    <li>Advanced: Automated bot farms for load testing.</li>
+                </ul>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Instrument metrics early—EVE Online's dashboards caught scaling
+                    issues pre-launch.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <hr style="opacity:.06" />
+
+    <!-- Graphics Part -->
+    <section>
+        <h2>Part II — Graphics: Advanced OpenGL & WebGL Fundamentals</h2>
+        <p class="section-intro">Deep dive into rendering pipelines, math, and techniques for real-time engines.
+            Includes advanced topics like ray marching, compute shaders, and optimization strategies.</p>
+
+        <div class="row">
+            <div class="col">
+                <h3>Rendering Pipeline (Conceptual, Expanded)</h3>
+                <p class="note">GPU flow: CPU batches -> vertex processing -> raster -> fragment. Optimize with bindless
+                    textures, multi-draw indirect, and GPU culling to handle 1M+ draws.</p>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        A[CPU Batch Prep] --> B[Upload Buffers (VBO/IBO/UBO)]
+                        B --> C[Vertex Shader]
+                        C --> GS[Geometry Shader (Optional)]
+                        GS --> TS[Tessellation (Optional)]
+                        TS --> D[Primitive Assembly]
+                        D --> E[Fragment Shader]
+                        E --> F[Depth/Stencil Tests]
+                        F --> G[Blending & Framebuffer]
+                        subgraph Compute
+                        H[Compute Shaders for Culling/Particles]
+                        end
+                        H --> A
+                    </div>
+                </div>
+
+                <h3>Key GL/WebGL Concepts (Expanded)</h3>
+                <ul>
+                    <li>Buffers: Use persistent mapping for dynamic updates; SSBOs for arbitrary data.</li>
+                    <li>Textures: Bindless arrays, sparse textures for megatextures.</li>
+                    <li>Framebuffers: Multi-sampled for AA; attachments for G-buffer in deferred.</li>
+                    <li>State: Minimize changes with uber-shaders compiling variants.</li>
+                </ul>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Use AZDO (Approaching Zero Driver Overhead) techniques—group by
+                    material, use indirect draws.
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Shaders & GLSL Patterns (Expanded)</h3>
+                <div class="pattern">
+                    <strong>PBR vs. Blinn-Phong</strong>
+                    <p class="note">PBR for realism: IBL, GGX specular. Blinn for mobile/stylized.</p>
+                </div>
+                <div class="pattern">
+                    <strong>Compute Shaders (New)</strong>
+                    <p class="note">For GPU particles, culling, or simulation (e.g., fluid dynamics).</p>
+                </div>
+                <h3>GLSL Snippet — Advanced Vertex with Skinning</h3>
+                <pre>// vertex.glsl
+attribute vec3 a_pos;
+attribute vec2 a_uv;
+attribute vec4 a_boneIds;
+attribute vec4 a_weights;
+uniform mat4 u_mvp;
+uniform mat4 u_bones[64];
+varying vec2 v_uv;
+void main(){
+  mat4 skin = u_bones[int(a_boneIds.x)] * a_weights.x + ...; // Sum weighted
+  vec4 pos = skin * vec4(a_pos, 1.0);
+  gl_Position = u_mvp * pos;
+  v_uv = a_uv;
+}</pre>
+                <h3>GLSL Snippet — PBR Fragment</h3>
+                <pre>// fragment.glsl
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_albedo, u_normal, u_roughness;
+void main(){
+  vec3 albedo = texture2D(u_albedo, v_uv).rgb;
+  // Compute lighting with GGX, Fresnel, etc.
+  gl_FragColor = vec4(computePBR(albedo, ...), 1.0);
+}</pre>
+            </div>
+        </div>
+
+        <hr style="opacity:.06" />
+
+        <div class="row">
+            <div class="col">
+                <h3>Math Primer — Vectors & Matrices (Expanded)</h3>
+                <p class="note">Column-major in GL; use quats for rotations to avoid gimbal lock. Advanced: Dual quats
+                    for skinning.</p>
+                <ul>
+                    <li>Vec3/4: SIMD ops for speed.</li>
+                    <li>Mat4: Decompose for interpolation.</li>
+                    <li>Quats: Slerp for anim blends.</li>
+                </ul>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        A[Model Space] -->|Model Mat| B[World Space]
+                        B -->|View Mat| C[View Space]
+                        C -->|Proj Mat| D[Clip Space]
+                        D -->|Perspective Divide| E[NDC]
+                        E -->|Viewport| F[Screen Space]
+                        subgraph Advanced
+                        G[Inverse Mats for Raycasting]
+                        end
+                        F --> G --> A
+                    </div>
+                </div>
+
+                <h3>Important Formulas (Expanded)</h3>
+                <pre>// LookAt View
+mat4 lookAt(vec3 eye, vec3 center, vec3 up) {
+  vec3 f = normalize(center - eye);
+  vec3 s = normalize(cross(f, up));
+  vec3 u = cross(s, f);
+  return mat4(vec4(s, -dot(s, eye)), vec4(u, -dot(u, eye)), vec4(-f, dot(f, eye)), vec4(0,0,0,1));
+}
+
+// Ortho Proj
+mat4 ortho(float l, float r, float b, float t, float n, float f) {
+  return mat4(vec4(2/(r-l),0,0,0), vec4(0,2/(t-b),0,0), vec4(0,0,2/(n-f),0), vec4(-(r+l)/(r-l), -(t+b)/(t-b), (f+n)/(n-f),1));
+}</pre>
+            </div>
+
+            <div class="col">
+                <h3>Camera Systems (Expanded)</h3>
+                <p class="note">Third-person with collision avoidance; cinematic with spline paths. Use jitter for TAA.
+                </p>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        Controller[Camera Controller] --> Transform[Camera Transform]
+                        Transform --> View[View Matrix]
+                        View --> Shader[Uniform u_view]
+                        Shader --> Proj[Projection Matrix]
+                        Proj --> Clip[Clip Space]
+                        Note right of Controller: Handle Shakes, Zooms
+                    </div>
+                </div>
+
+                <h3>Practical Tips (Expanded)</h3>
+                <ul>
+                    <li>Floating origin for vast worlds.</li>
+                    <li>Reverse-Z for depth precision.</li>
+                    <li>Frustum + occlusion culling with GPU queries.</li>
+                    <li>Advanced: Ray marching for volumetrics.</li>
+                </ul>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Profile shaders with NVIDIA Nsight—optimize branches.
+                </div>
+            </div>
+        </div>
+
+        <hr style="opacity:.06" />
+
+        <div class="row">
+            <div class="col">
+                <h3>Advanced Topics — Batching, Instancing, LOD (Expanded)</h3>
+                <p class="note">Multi-draw indirect for foliage; mesh shaders for next-gen.</p>
+                <div class="diagram">
+                    <div class="mermaid">
+                        graph TD
+                        Entities[Many Entities] --> InstBuffer[Instance Buffer (Mats, Colors)]
+                        InstBuffer --> Draw[glDrawElementsInstanced]
+                        Draw --> GPU[GPU Processes in Parallel]
+                        GPU --> Screen
+                        Note right of Draw: Reduce CPU Calls
+                    </div>
+                </div>
+                <h3>Shadow Mapping & Lighting (Expanded)</h3>
+                <p class="note">CSM with VSM for soft shadows; clustered lighting for many lights.</p>
+            </div>
+
+            <div class="col">
+                <h3>Post-Processing & HDR (Expanded)</h3>
+                <p class="note">ACESTonemap; bloom with mip chains; TAA for anti-aliasing.</p>
+                <div class="diagram">
+                    <div class="mermaid">
+                        sequenceDiagram
+                        Scene->>HDR: Render High Dynamic
+                        HDR->>Extract: Bright Pass
+                        Extract->>Blur: Gaussian Mips
+                        Blur->>Composite: Add to ToneMapped
+                        Composite->>TAA: Temporal AA
+                        TAA->>Screen: Final sRGB
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr style="opacity:.06" />
+
+        <div class="row">
+            <div class="col">
+                <h3>WebGL Specifics (Expanded)</h3>
+                <ul>
+                    <li>Extensions: WEBGL2 for transforms feedback.</li>
+                    <li>Streaming: Use OffscreenCanvas for workers.</li>
+                    <li>Context: Handle loss with resource managers.</li>
+                </ul>
+                <h3>Example — Minimal WebGL Setup (JS, Expanded)</h3>
+                <pre>// With instancing
+const program = createProgram(gl, vs, fs);
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+// Setup attributes...
+gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
+gl.vertexAttribDivisor(location, 1); // Per instance
+gl.drawElementsInstanced(gl.TRIANGLES, indices, gl.UNSIGNED_SHORT, 0, instanceCount);</pre>
+            </div>
+
+            <div class="col">
+                <h3>Precision & Profiling (Expanded)</h3>
+                <ul>
+                    <li>Tools: RenderDoc, WebGPU Inspector.</li>
+                    <li>Optimizations: Half-floats for normals; texture compression (Basis).</li>
+                    <li>GPU Anim: Vertex texture fetch for skinning.</li>
+                </ul>
+                <div class="tip">
+                    <strong>Professional Tip</strong>: Target 60fps with VSync; use requestAnimationFrame in WebGL.
+                </div>
+            </div>
+        </div>
+
+        <hr style="opacity:.06" />
+
+        <div class="row">
+            <div class="col">
+                <h3>Cheat Sheet — Matrix Conventions</h3>
+                <pre>// Multiply order: P * V * M * vec
+// Flatten column-major for uniform buffers</pre>
+                <h3>Quaternion Quick Rules (Expanded)</h3>
+                <ul>
+                    <li>Normalize post-ops; NLerp for cheap, Slerp for constant speed.</li>
+                    <li>Dual quats: For linear blend skinning without artifacts.</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Common Gotchas (Expanded)</h3>
+                <ul>
+                    <li>Matrix order mismatches.</li>
+                    <li>Depth artifacts: Log-depth buffers alternative to reverse-Z.</li>
+                    <li>Gamma: Linear workflow essential for PBR.</li>
+                    <li>WebGL: Precision qualifiers for mediums/highp.</li>
+                </ul>
+            </div>
+        </div>
+
+    </section>
+
+    <footer>
+        <p>Notes: This enhanced guide draws from professional insights and case studies for advanced development. Adapt
+            diagrams and code to your tech stack. If Mermaid fails, check CDN.</p>
+        <p>— Happy hacking. Prototype small, iterate fast, scale smart.</p>
+    </footer>
+</body>
+
+</html>

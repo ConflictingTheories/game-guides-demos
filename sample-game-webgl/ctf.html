@@ -1,0 +1,352 @@
+<!-- zone_of_interest_rollback.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Zone of Interest Rollback — Capture Demo</title>
+    <style>
+        body {
+            background: #030306;
+            color: #ddd;
+            font-family: monospace;
+            text-align: center;
+        }
+
+        canvas {
+            background: #071018;
+            display: block;
+            margin: 8px auto;
+            border: 1px solid #222;
+        }
+
+        #ui {
+            width: 700px;
+            margin: 0 auto;
+        }
+
+        #log {
+            height: 120px;
+            overflow: auto;
+            font-size: 12px;
+            text-align: left;
+            background: #050507;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #222;
+            color: #bfbfbf;
+        }
+
+        .hint {
+            color: #bbb;
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>Zone of Interest — Capture & Rollback Demo</h3>
+    <canvas id="game" width="700" height="420"></canvas>
+    <div id="ui">
+        <div class="hint">Latency: <input id="lat" type="range" min="0" max="300" value="120"> <span
+                id="latv">120</span> ms &nbsp; | &nbsp; P1: WASD (capture) • P2: IJKL (contest)</div>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        /*
+        Zone of Interest demo:
+        - There is a circular capture zone on the server; clients may have their own local approximation.
+        - Client predicts entering zone and starts local capture progress. Server authoritative zone position or capture rules may differ and cause disputes.
+        - On server correction, client rewinds and replays inputs and updates capture progress to server authority.
+        */
+
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const lat = document.getElementById('lat');
+        const latv = document.getElementById('latv');
+        const log = document.getElementById('log');
+        lat.oninput = () => latv.innerText = lat.value;
+
+        const tickRate = 60;
+        const dt = 1 / tickRate;
+        let tick = 0;
+        function now() { return Date.now(); }
+
+        const keys = {};
+        document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function pushLog(s) {
+            const t = new Date().toLocaleTimeString();
+            log.innerHTML = `[${t}] ${s}\n` + log.innerHTML;
+            if (log.childNodes.length > 300) log.removeChild(log.lastChild);
+        }
+
+        function makePlayer(x, y, color, controls) {
+            return {
+                color, controls,
+                pred: { x, y }, server: { x, y },
+                inputHistory: {},
+                captureLocal: 0, // 0..1
+                captureServer: 0,
+                insideLocal: false,
+                insideServer: false
+            };
+        }
+
+        const players = [
+            makePlayer(80, 220, 'cyan', ['w', 'a', 's', 'd']),
+            makePlayer(620, 220, 'lime', ['i', 'j', 'k', 'l'])
+        ];
+
+        const captureRate = 0.02; // per tick when inside (roughly 1.2s to capture at 60hz -> 72 ticks)
+        const contestRate = 0.015; // slower when contested
+
+        // Server authoritative zone (center may differ slightly from client visible marker to create disputes)
+        const serverZone = { x: 350, y: 210, r: 80 }; // server-only center
+        const clientZoneOffset = { x: -6, y: 5 }; // client draws zone slightly different to create mispredictions
+
+        const serverState = {
+            players: [
+                { x: players[0].server.x, y: players[0].server.y },
+                { x: players[1].server.x, y: players[1].server.y }
+            ],
+            captureProgress: 0, owner: null
+        };
+
+        let serverIncoming = [];
+        let serverToClientQueues = [[], []];
+
+        // sample input
+        function sampleInputFor(p) {
+            return {
+                up: !!keys[p.controls[0]],
+                left: !!keys[p.controls[1]],
+                down: !!keys[p.controls[2]],
+                right: !!keys[p.controls[3]]
+            };
+        }
+
+        function applyMove(state, input, dt) {
+            let dx = 0, dy = 0;
+            if (input.up) dy -= 1;
+            if (input.down) dy += 1;
+            if (input.left) dx -= 1;
+            if (input.right) dx += 1;
+            if (dx !== 0 && dy !== 0) { const k = 1 / Math.sqrt(2); dx *= k; dy *= k; }
+            const speed = 150;
+            state.x += dx * speed * dt;
+            state.y += dy * speed * dt;
+        }
+
+        // client tick
+        function clientTick(idx) {
+            const p = players[idx];
+            const input = sampleInputFor(p);
+            p.inputHistory[tick] = input;
+            applyMove(p.pred, input, dt);
+
+            // local zone is slightly shifted to create mismatch sometimes
+            const zoneLocal = { x: serverZone.x + clientZoneOffset.x, y: serverZone.y + clientZoneOffset.y, r: serverZone.r };
+
+            const dist = Math.hypot(p.pred.x - zoneLocal.x, p.pred.y - zoneLocal.y);
+            p.insideLocal = dist <= zoneLocal.r;
+
+            // determine contest: other player present locally?
+            const other = players[1 - idx];
+            const otherDist = Math.hypot(other.pred.x - zoneLocal.x, other.pred.y - zoneLocal.y);
+            const contestedLocal = otherDist <= zoneLocal.r;
+
+            // local capture progress
+            if (p.insideLocal && !contestedLocal) {
+                p.captureLocal = Math.min(1, p.captureLocal + captureRate);
+            } else if (p.insideLocal && contestedLocal) {
+                p.captureLocal = Math.max(0, p.captureLocal - contestRate);
+            } else {
+                // slowly decay
+                p.captureLocal = Math.max(0, p.captureLocal - (captureRate * 0.25));
+            }
+
+            // send input + local capture state to server
+            serverIncoming.push({ from: idx, tick, input, sendTime: now(), latency: parseInt(lat.value) });
+        }
+
+        // server tick: process incoming messages and update authoritative capture state
+        function serverTick() {
+            const nowt = now();
+            // process incoming
+            for (let i = serverIncoming.length - 1; i >= 0; --i) {
+                const msg = serverIncoming[i];
+                if (nowt - msg.sendTime >= msg.latency) {
+                    // apply movement to server player
+                    const s = serverState.players[msg.from];
+                    applyMove(s, msg.input, 1 / tickRate);
+
+                    // after processing movement, check server authoritative zone membership
+                    const dist = Math.hypot(s.x - serverZone.x, s.y - serverZone.y);
+                    const inside = dist <= serverZone.r;
+                    // update server player's stored inside flag
+                    players[msg.from].insideServer = inside; // for server-side visualization in log
+                    // determine contested
+                    const otherIdx = 1 - msg.from;
+                    const otherDist = Math.hypot(serverState.players[otherIdx].x - serverZone.x, serverState.players[otherIdx].y - serverZone.y);
+                    const contested = otherDist <= serverZone.r;
+
+                    // adjust server capture progress for this tick: simple authoritative accumulator
+                    if (inside && !contested) {
+                        serverState.captureProgress = Math.min(1, serverState.captureProgress + captureRate);
+                        serverState.owner = msg.from;
+                    } else if (inside && contested) {
+                        serverState.captureProgress = Math.max(0, serverState.captureProgress - contestRate);
+                    } else {
+                        // decay slowly
+                        serverState.captureProgress = Math.max(0, serverState.captureProgress - captureRate * 0.25);
+                        if (serverState.captureProgress === 0) serverState.owner = null;
+                    }
+
+                    // send authoritative position + capture progress back to all clients (with latency)
+                    serverToClientQueues.forEach((q, i) => {
+                        q.push({ to: i, tick: msg.tick, correction: { type: 'pos_and_capture', pos: serverState.players[i], capture: serverState.captureProgress, owner: serverState.owner }, sendTime: now(), latency: parseInt(lat.value) });
+                    });
+
+                    serverIncoming.splice(i, 1);
+                }
+            }
+        }
+
+        // client processes server->client corrections and performs rollback when needed
+        let flashes = [];
+        function pushRollbackFlash(playerIndex, reason, rollbackTick) {
+            flashes.push({ playerIndex, reason, rollbackTick, created: now() });
+        }
+
+        function clientProcessServerMessages(plIndex) {
+            const q = serverToClientQueues[plIndex];
+            const nowt = now();
+            for (let i = q.length - 1; i >= 0; --i) {
+                const msg = q[i];
+                if (nowt - msg.sendTime >= msg.latency) {
+                    if (msg.correction.type === 'pos_and_capture') {
+                        // authoritative pos for tick msg.tick; set predicted pos to server pos and replay inputs from tick+1 to now
+                        const p = players[plIndex];
+                        p.pred.x = msg.correction.pos.x;
+                        p.pred.y = msg.correction.pos.y;
+                        for (let t = msg.tick + 1; t <= tick; ++t) {
+                            const inp = p.inputHistory[t];
+                            if (inp) applyMove(p.pred, inp, 1 / tickRate);
+                        }
+                        // authoritative capture progress: set local captureServer and reconcile
+                        p.captureServer = msg.correction.capture;
+                        // if local capture differs from server capture significantly (>0.05) -> visual rollback
+                        if (Math.abs(p.captureLocal - p.captureServer) > 0.05) {
+                            pushLog(`Client ${plIndex + 1} capture mismatch: local=${p.captureLocal.toFixed(2)} server=${p.captureServer.toFixed(2)} -> rolling back to server progress`);
+                            p.captureLocal = p.captureServer; // set to authoritative then continue (we could replay, but server capture depends on both players positions, handled globally)
+                            pushRollbackFlash(plIndex, 'capture-correct', msg.tick);
+                        }
+                        pushLog(`Client ${plIndex + 1} pos/capture corrected to server tick ${msg.tick}`);
+                    }
+                    q.splice(i, 1);
+                }
+            }
+        }
+
+        // draw
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // background
+            ctx.fillStyle = '#08121a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // draw client-visible zone (slightly offset)
+            const zoneClient = { x: serverZone.x + clientZoneOffset.x, y: serverZone.y + clientZoneOffset.y, r: serverZone.r };
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.fillStyle = '#0077aa';
+            ctx.beginPath();
+            ctx.arc(zoneClient.x, zoneClient.y, zoneClient.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+
+            // draw server authoritative zone outline (for demo clarity, show dashed orange outline)
+            ctx.save();
+            ctx.strokeStyle = 'orange';
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(serverZone.x - serverZone.r, serverZone.y - serverZone.r, serverZone.r * 2, serverZone.r * 2); // square outline for contrast
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // draw players: server ghost + predicted
+            players.forEach((p, i) => {
+                // server ghost
+                ctx.globalAlpha = 0.45;
+                ctx.fillStyle = p.color;
+                const sp = serverState.players[i];
+                ctx.fillRect(sp.x - 12, sp.y - 12, 24, 24);
+                ctx.globalAlpha = 1.0;
+                // predicted
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.pred.x - 10, p.pred.y - 10, 20, 20);
+                // draw local capture bar above player
+                ctx.fillStyle = '#222';
+                ctx.fillRect(p.pred.x - 20, p.pred.y - 24, 40, 6);
+                ctx.fillStyle = '#00ffcc';
+                ctx.fillRect(p.pred.x - 20, p.pred.y - 24, 40 * p.captureLocal, 6);
+                // draw server capture bar near top for reference
+            });
+
+            // draw server global capture progress bar
+            ctx.fillStyle = '#222';
+            ctx.fillRect(10, 380, 300, 14);
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(10, 380, 300 * serverState.captureProgress, 14);
+            ctx.fillStyle = '#ddd'; ctx.font = '12px monospace';
+            ctx.fillText(`Server capture: ${(serverState.captureProgress * 100).toFixed(0)}% owner: ${serverState.owner === null ? 'none' : 'P' + (serverState.owner + 1)}`, 320, 392);
+
+            // rollback flashes
+            const nowt = now();
+            flashes = flashes.filter(f => {
+                const age = nowt - f.created;
+                if (age > 900) return false;
+                const a = 1 - (age / 900);
+                ctx.save();
+                ctx.globalAlpha = a;
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 3;
+                const p = players[f.playerIndex];
+                ctx.strokeRect(p.pred.x - 18, p.pred.y - 18, 36, 36);
+                ctx.restore();
+                return true;
+            });
+
+            // HUD
+            ctx.fillStyle = '#ddd'; ctx.font = '12px monospace';
+            ctx.fillText(`Tick: ${tick}`, 10, 14);
+            ctx.fillText(`Latency: ${lat.value}ms`, 10, 28);
+        }
+
+        // main game loop
+        function gameLoop() {
+            tick++;
+            players.forEach((_, idx) => clientTick(idx));
+            serverTick();
+            players.forEach((_, idx) => clientProcessServerMessages(idx));
+            draw();
+        }
+
+        setInterval(gameLoop, 1000 / tickRate);
+
+        // send periodic authoritative positions (helpful)
+        setInterval(() => {
+            serverToClientQueues.forEach((q, i) => {
+                q.push({ to: i, tick, correction: { type: 'pos_and_capture', pos: serverState.players[i], capture: serverState.captureProgress, owner: serverState.owner }, sendTime: now(), latency: parseInt(lat.value) });
+            });
+        }, 250);
+
+        // initial
+        pushLog("Zone demo ready. Move into the blue circle (client-visible) to capture. Server zone and rules are authoritative and may disagree — increase latency to force visible rollback/corrections.");
+    </script>
+</body>
+
+</html>

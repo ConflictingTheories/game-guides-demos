@@ -1,0 +1,306 @@
+<!-- movement_rollback.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Movement Rollback — Wall Desync</title>
+  <style>
+    body {
+      background: #0b0b0b;
+      color: #ddd;
+      font-family: monospace;
+      text-align: center;
+    }
+
+    canvas {
+      background: #111;
+      display: block;
+      margin: 10px auto;
+      border: 1px solid #222;
+    }
+
+    #ui {
+      margin: 8px auto;
+      width: 640px;
+    }
+
+    .info {
+      font-size: 13px;
+      color: #ccc;
+    }
+
+    #log {
+      height: 60px;
+      overflow: auto;
+      font-size: 12px;
+      text-align: left;
+      background: #060606;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #222;
+      color: #bfbfbf;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Movement Rollback — Wall Desync (server-only wall)</h3>
+  <canvas id="game" width="640" height="360"></canvas>
+  <div id="ui">
+    Latency: <input id="lat" type="range" min="0" max="300" value="100"> <span id="latv">100</span> ms
+    &nbsp; | &nbsp; <span class="info">P1: WASD (cyan) • P2: IJKL (lime)</span>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const lat = document.getElementById('lat');
+    const latv = document.getElementById('latv');
+    const log = document.getElementById('log');
+    lat.oninput = () => latv.innerText = lat.value;
+
+    const tickRate = 60;
+    const dt = 1 / tickRate;
+    let tick = 0;
+
+    function now() { return Date.now(); }
+
+    // Input management
+    const keys = {};
+    document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    // Player template (two simulated clients)
+    function makePlayer(x, y, color, controls) {
+      return {
+        color,
+        pred: { x, y, vx: 0, vy: 0 },
+        server: { x, y, vx: 0, vy: 0 },
+        inputHistory: {}, // tick -> input
+        pendingToServer: [], // outbound message queue (simulated latency)
+        controls,
+        lastAckTick: 0
+      }
+    }
+
+    const players = [
+      makePlayer(100, 180, 'cyan', ['w', 'a', 's', 'd']),
+      makePlayer(200, 180, 'lime', ['i', 'j', 'k', 'l'])
+    ];
+
+    // Server-only invisible wall: rectangle the clients don't know about.
+    // Position it such that players may try to pass through it.
+    const serverWorld = {
+      wall: { x: 320, y: 120, w: 16, h: 120 } // vertical wall at x=320
+    };
+
+    // Simple server authoritative representation (server applies inputs)
+    const serverState = {
+      players: [
+        { x: players[0].server.x, y: players[0].server.y },
+        { x: players[1].server.x, y: players[1].server.y }
+      ]
+    };
+
+    // Simulate message round-trip: each client has a queue of server->client messages
+    const serverToClientQueues = [[], []];
+
+    const speed = 180; // px/sec
+
+    // helper logging
+    function pushLog(s) {
+      const time = new Date().toLocaleTimeString();
+      log.innerHTML = `[${time}] ${s}\n` + log.innerHTML;
+      if (log.childNodes.length > 200) log.removeChild(log.lastChild);
+    }
+
+    // produce input object for tick
+    function sampleInputFor(player) {
+      return {
+        up: !!keys[player.controls[0]],
+        left: !!keys[player.controls[1]],
+        down: !!keys[player.controls[2]],
+        right: !!keys[player.controls[3]]
+      };
+    }
+
+    // Client tick: prediction + send input packet to server (with latency)
+    function clientTick(plIndex) {
+      const p = players[plIndex];
+      const input = sampleInputFor(p);
+      // store in history for this tick
+      p.inputHistory[tick] = input;
+      // apply input locally (prediction)
+      applyInputToState(p.pred, input, dt);
+
+      // simulate send: send (tick, input) to server with latency
+      const message = { from: plIndex, tick, input, sendTime: now(), latency: parseInt(lat.value) };
+      // push into server's incoming queue (simulate network)
+      // we model it by having server poll and check queued messages - so put it in a global queue
+      serverIncomingQueue.push(message);
+    }
+
+    // apply deterministic input to a state object
+    function applyInputToState(state, input, dt) {
+      let dx = 0, dy = 0;
+      if (input.up) dy -= 1;
+      if (input.down) dy += 1;
+      if (input.left) dx -= 1;
+      if (input.right) dx += 1;
+      // normalize
+      if (dx !== 0 && dy !== 0) {
+        const inv = 1 / Math.sqrt(2);
+        dx *= inv; dy *= inv;
+      }
+      state.x += dx * speed * dt;
+      state.y += dy * speed * dt;
+    }
+
+    // Server incoming queue (all clients push here)
+    const serverIncomingQueue = [];
+
+    // Server tick: process packets that have arrived (latency elapsed), update serverState
+    function serverTick() {
+      const nowt = now();
+      // process messages whose latency expired
+      for (let i = serverIncomingQueue.length - 1; i >= 0; --i) {
+        const msg = serverIncomingQueue[i];
+        if (nowt - msg.sendTime >= msg.latency) {
+          // apply on server authoritative model
+          // apply input to serverState.players[msg.from] deterministically
+          const s = serverState.players[msg.from];
+          applyInputToState(s, msg.input, 1 / tickRate);
+          // collision with server-only wall: if s.x crosses into wall, clamp it
+          const w = serverWorld.wall;
+          // treat players as 20x20 boxes, center at s.x,s.y
+          const half = 10;
+          const px = s.x, py = s.y;
+          // compute bbox after move
+          const left = px - half, right = px + half, top = py - half, bottom = py + half;
+          if (!(right < w.x || left > w.x + w.w || bottom < w.y || top > w.y + w.h)) {
+            // collided — clamp on left side of wall if approaching from left, right side if from right
+            if (px < w.x) s.x = w.x - half;
+            else s.x = w.x + w.w + half;
+          }
+          // send authoritative correction back to that client (with latency)
+          const correction = { to: msg.from, tick: msg.tick, state: { x: s.x, y: s.y }, sendTime: now(), latency: parseInt(lat.value) };
+          serverToClientQueues[msg.from].push(correction);
+          // remove processed message
+          serverIncomingQueue.splice(i, 1);
+        }
+      }
+    }
+
+    // Client processing server->client authoritative updates
+    function clientProcessServerMessages(plIndex) {
+      const q = serverToClientQueues[plIndex];
+      const nowt = now();
+      for (let i = q.length - 1; i >= 0; --i) {
+        const msg = q[i];
+        if (nowt - msg.sendTime >= msg.latency) {
+          // Received authoritative state for tick msg.tick
+          handleServerCorrection(plIndex, msg);
+          q.splice(i, 1);
+        }
+      }
+    }
+
+    // handle correction: compare server state vs client predicted at the tick -> if diverged, rollback
+    function handleServerCorrection(plIndex, msg) {
+      const p = players[plIndex];
+      const serverX = msg.state.x, serverY = msg.state.y;
+      const clientPredNow = p.pred;
+      // If the server says a different position at msg.tick than what client had as predicted for that tick,
+      // we must rollback to server state at that tick, then replay inputs from that tick+1 to current tick.
+      // We don't have stored client full states per tick, but we do have inputHistory. So: set state to server state and replay.
+      // We'll store a visible rollback marker and flash.
+      // Rewind:
+      const rollbackTick = msg.tick;
+      // Build a minimal replay: set predicted to server state, then for t = rollbackTick+1..tick apply inputs from history if present
+      // But ensure we only replay up to current tick (prevents future playback).
+      p.pred.x = serverX;
+      p.pred.y = serverY;
+
+      // Replay inputs
+      for (let t = rollbackTick + 1; t <= tick; ++t) {
+        const input = p.inputHistory[t];
+        if (!input) continue; // if missing, assume no input
+        applyInputToState(p.pred, input, 1 / tickRate);
+      }
+
+      // Visual: flash and record correction info
+      pushLog(`Player ${plIndex + 1} rollback to tick ${rollbackTick} -> corrected to (${Math.round(serverX)},${Math.round(serverY)})`);
+      pushRollbackFlash(plIndex, rollbackTick, serverX, serverY);
+    }
+
+    // rollback visuals
+    let flashes = [];
+    function pushRollbackFlash(playerIndex, rollbackTick, x, y) {
+      flashes.push({ playerIndex, rollbackTick, x, y, created: now() });
+    }
+
+    // draw loop
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // draw server-only wall (visible in demo as dashed outline but different color to indicate server-only)
+      const w = serverWorld.wall;
+      ctx.save();
+      ctx.strokeStyle = 'orange';
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+      ctx.restore();
+
+      // draw both players: predicted solid, server ghost semi-transparent
+      players.forEach((p, i) => {
+        // predicted
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.pred.x - 10, p.pred.y - 10, 20, 20);
+        // server ghost
+        ctx.globalAlpha = 0.45;
+        ctx.fillRect(serverState.players[i].x - 10, serverState.players[i].y - 10, 20, 20);
+        ctx.globalAlpha = 1.0;
+      });
+
+      // draw rollback flashes
+      const nowt = now();
+      flashes = flashes.filter(f => {
+        const age = nowt - f.created;
+        if (age > 1000) return false;
+        const alpha = 1 - (age / 1000);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(f.x - 16, f.y - 16, 32, 32);
+        ctx.restore();
+        return true;
+      });
+
+      // HUD
+      ctx.fillStyle = '#ddd';
+      ctx.font = '12px monospace';
+      ctx.fillText(`Tick: ${tick}`, 10, 14);
+    }
+
+    function gameLoop() {
+      tick++;
+      // client ticks: each client samples input and predicts immediately
+      players.forEach((_, idx) => clientTick(idx));
+      // server tick: process arrivals and update authoritative server (run at same tickRate for simplicity)
+      serverTick();
+      // client process server messages if arrived
+      players.forEach((_, idx) => clientProcessServerMessages(idx));
+      draw();
+    }
+
+    setInterval(gameLoop, 1000 / tickRate);
+
+    // initial log
+    pushLog("Demo ready. Increase latency to see bigger divergence. Try crossing the orange server-wall to trigger rollbacks.");
+  </script>
+</body>
+
+</html>
