@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WebGL/WebGPU Demos & Guides</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    body {
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      padding: 20px
+    }
+
+    header {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      border: 2px solid #ff6b9d
+    }
+
+    h1 {
+      color: #ff6b9d;
+      font-size: 36px;
+      margin-bottom: 10px
+    }
+
+    nav {
+      margin-top: 10px
+    }
+
+    nav a {
+      color: #eee;
+      text-decoration: none;
+      margin: 0 15px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      transition: background 0.3s
+    }
+
+    nav a:hover {
+      background: #ff6b9d;
+      color: #111
+    }
+
+    .section {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #444
+    }
+
+    .section h2 {
+      color: #ff6b9d;
+      margin-bottom: 10px;
+      font-size: 24px
+    }
+
+    .demo-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px
+    }
+
+    .demo-item {
+      background: #333;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #555
+    }
+
+    .demo-item h3 {
+      color: #eee;
+      margin-bottom: 5px
+    }
+
+    .demo-item p {
+      color: #ccc;
+      font-size: 14px;
+      margin-bottom: 10px
+    }
+
+    .demo-item a {
+      color: #ff6b9d;
+      text-decoration: none;
+      font-weight: bold
+    }
+
+    .demo-item a:hover {
+      text-decoration: underline
+    }
+
+    .prinny {
+      font-size: 24px;
+      text-align: center;
+      color: #ff6b9d;
+      margin: 20px 0;
+      animation: pulse 1s infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.2)
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>WEBGL/WEBGPU DEMOS & GUIDES</h1>
+    <nav>
+      <a href="#guides">Guides</a>
+      <a href="#demos">Demos</a>
+      <a href="#tools">Tools</a>
+    </nav>
+  </header>
+
+  <div class="prinny">PRINNY SQUAD DOOD!</div>
+
+  <section id="guides" class="section">
+    <h2>Guides</h2>
+    <div class="demo-list">
+      <div class="demo-item">
+        <h3>WebGL OpenGL Guide</h3>
+        <p>Learn WebGL basics with OpenGL comparisons.</p>
+        <a href="webgl-opengl.html">View Guide</a>
+      </div>
+      <div class="demo-item">
+        <h3>WebGPU Guide</h3>
+        <p>Introduction to WebGPU for modern graphics.</p>
+        <a href="webgpu-guide.html">View Guide</a>
+      </div>
+      <div class="demo-item">
+        <h3>RPG 2.5HD Guide</h3>
+        <p>Tips on building a 2.5D RPG.</p>
+        <a href="rpg-25hd.html">View Guide</a>
+      </div>
+      <div class="demo-item">
+        <h3>Disgaea Clone Game Guide</h3>
+        <p>Tips on designing Tactical RPGs like Disgaea and Final Fantasy Tactics.</p>
+        <a href="disagea-guide.html">View Guide</a>
+      </div>
+      <div class="demo-item">
+        <h3>Game Engine Patterns Guide</h3>
+        <p>Learn Game engine basics with architecture overviews.</p>
+        <a href="game-engine-guide.html">View Guide</a>
+      </div>
+      <div class="demo-item">
+        <h3>Advanced Game Engine Patterns Guide</h3>
+        <p>Learn additional Game engine patterns with additional case studies.</p>
+        <a href="game-engine-guide-2.html">View Guide</a>
+      </div>
+
+      <div class="demo-item">
+        <h3>Additional Game Engine Tutorials</h3>
+        <p>Tutorials on building game engines with WebGL/WebGPU.</p>
+        <a href="game-engine-guide-pro.html">View Tutorials</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demos" class="section">
+    <h2>Demos</h2>
+    <div class="demo-list">
+      <div class="demo-item">
+        <h3>Disgaea Prototype</h3>
+        <p>Advanced WebGL2 SRPG with units, abilities, camera controls.</p>
+        <a href="webgl-demos/dis.html">Play Demo</a>
+      </div>
+      <div class="demo-item">
+        <h3>Prinny SRPG Demo</h3>
+        <p>Isometric grid demo with movement, lift/throw, geo panels.</p>
+        <a href="prinny.html">Play Demo</a>
+      </div>
+      <div class="demo-item">
+        <h3>Sample WebGL Games</h3>
+        <p>Collection of sample games built with WebGL.</p>
+        <a href="sample-game-webgl/">View Games</a>
+      </div>
+      <div class="demo-item">
+        <h3>Dark Assembly Demo</h3>
+        <p>Combined isometric SRPG with units, HP/MP, abilities, lift/throw, geo chain, prinny explosion.</p>
+        <a href="dark-assembly.html">Play Demo</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="tools" class="section">
+    <h2>Tools</h2>
+    <div class="demo-list">
+      <div class="demo-item">
+        <h3>PixoSpritz Tile Editor</h3>
+        <p>Pixel tile editor tool.</p>
+        <a href="Pixo-Editor/editor.html">Open Tool</a>
+      </div>
+    </div>
+  </section>
+
+</body>
+
+</html>

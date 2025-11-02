@@ -238,21 +238,22 @@
                     <div class="mermaid">
                         graph TD
                         subgraph Client
-                        A[Input Handler] --> B[Local Simulation & Prediction]
-                        B --> C[Renderer Pipeline]
-                        B --> D[Client-Side Effects & Interpolation]
-                        C --> E[Post-Processing & Output]
+                            A[Input] --> B[Prediction]
+                            B --> C[Renderer]
+                            B --> D[Interpolation]
+                            C --> E[Output]
                         end
                         subgraph Server
-                        S[Authoritative State Manager] --> M[Persistence DB]
-                        S --> N[Multi-Threaded Simulation]
-                        N --> O[Anti-Cheat Validator]
+                            S[State] --> M[DB]
+                            S --> N[Sim]
                         end
-                        B -->|Commands (UDP)| S
-                        S -->|Delta Snapshots (Compressed)| D
-                        C -->|Occasional Sync| S
-                        classDef client fill:#022,stroke:#0f0
+                        B -->|Cmd| S
+                        S -->|Snap| D
+
+                        classDef client fill:#022,stroke:#0f0,color:#fff
+                        classDef server fill:#300,stroke:#f66,color:#fff
                         class A,B,C,D,E client
+                        class S,M,N server
                     </div>
                 </div>
                 <p class="note">This enhanced diagram shows the command-snapshot flow with added layers for prediction,

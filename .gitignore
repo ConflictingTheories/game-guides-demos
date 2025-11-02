@@ -1,0 +1,6 @@
+*.pdf
+dotnet/
+DMGS/
+.localized
+resume/
+pdfs/
