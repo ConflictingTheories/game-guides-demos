@@ -6,11 +6,51 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>WebGL/WebGPU Demos & Guides</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/donation-styles.css" />
     <script type="module">
         import App from './App.js';
         App();
     </script>
 </head>
-<body></body>
+<body>
+    <!-- Content -->
+  <main class="content">
+    <!-- Donation Banner -->
+    <div class="donation-banner" id="donationBanner">
+      <button class="close-donation" onclick="donationManager.hideDonationBanner()">×</button>
+      <div class="donation-content">
+        <div class="donation-title">Support My Efforts</div>
+        <div class="donation-text">
+          If this app has helped you manage your finances better, consider supporting its development. Every donation
+          helps!
+        </div>
+
+        <div class="donation-links">
+          <a href="https://buymeacoffee.com/kderbyma" class="donation-link primary" target="_blank">
+            ☕ Buy Me a Coffee
+          </a>
+          <a href="https://patreon.com/kderbyma" class="donation-link secondary" target="_blank">
+            🎯 Patreon
+          </a>
+          <a href="https://ko-fi.com/kderbyma" class="donation-link secondary" target="_blank">
+            🥤 Ko-fi
+          </a>
+          <a href="https://github.com/sponsors/ConflictingTheories" class="donation-link secondary" target="_blank">
+            ⭐ GitHub Sponsors
+          </a>
+        </div>
+
+        <div class="donation-hint">
+          Your support helps keep this project free and open source!
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Donation Button -->
+    <button class="floating-donation hidden" id="floatingDonation"
+      onclick="document.querySelector('[data-view=donate]').click();">
+      ❤️ Support
+    </button>
+</body>
 </html>
