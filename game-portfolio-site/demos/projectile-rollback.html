@@ -1,363 +1,392 @@
 <!-- combat_rollback.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8"/>
-<title>Combat Rollback — Bullet Hit Dispute (C1)</title>
-<style>
-  body { background:#060606; color:#ddd; font-family:monospace; text-align:center; }
-  canvas { background:#0d0d10; display:block; margin:10px auto; border:1px solid #222; }
-  #ui { margin:8px auto; width:760px; }
-  #log { height:80px; overflow:auto; font-size:12px; text-align:left; background:#060606; padding:6px; border-radius:4px; border:1px solid #222; color:#bfbfbf; }
-</style>
-</head>
-<body>
-<h3>Combat Rollback — Bullet Hit Dispute (Client predicts hit, server says miss)</h3>
-<canvas id="game" width="760" height="400"></canvas>
-<div id="ui">
-  Latency: <input id="lat" type="range" min="0" max="300" value="120"> <span id="latv">120</span> ms
-  <div style="font-size:13px; color:#bbb">P1 (cyan): WASD + SPACE to shoot • P2 (lime): IJKL (target)</div>
-  <div id="log"></div>
-</div>
-
-<script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const lat = document.getElementById('lat');
-const latv = document.getElementById('latv');
-const log = document.getElementById('log');
-lat.oninput = ()=>latv.innerText = lat.value;
-
-const tickRate = 60;
-const dt = 1/tickRate;
-let tick = 0;
-function now(){ return Date.now(); }
-
-const keys = {};
-document.addEventListener('keydown', e=> keys[e.key.toLowerCase()] = true);
-document.addEventListener('keyup', e=> keys[e.key.toLowerCase()] = false);
-
-// Entities
-function makePlayer(x,y,color,controls,isShooter=false){
-  return {
-    color, controls, isShooter,
-    pred:{x,y}, server:{x,y},
-    inputHistory:{}, // tick -> input
-    bulletsPred:[], // local predicted bullets [{x,y,vx,vy,spawnTick, id}]
-    pendingToServer: []
-  };
-}
-
-const players = [
-  makePlayer(100,200,'cyan',['w','a','s','d'], true), // shooter
-  makePlayer(600,200,'lime',['i','j','k','l'], false) // target
-];
-
-// server state has authoritative target and bullets list
-const serverState = {
-  players: [
-    {x: players[0].server.x, y: players[0].server.y},
-    {x: players[1].server.x, y: players[1].server.y},
-  ],
-  bullets: [] // server bullets (authoritative)
-};
-
-let serverIncoming = [];
-let serverToClientQueues = [[],[]];
-
-const speed = 160;
-const bulletSpeed = 520;
-let nextBulletId = 1;
-
-function pushLog(s){
-  const time = new Date().toLocaleTimeString();
-  log.innerHTML = `[${time}] ${s}\n` + log.innerHTML;
-  if(log.childNodes.length>200) log.removeChild(log.lastChild);
-}
-
-// sample input
-function sampleInputFor(p){
-  return {
-    up: !!keys[p.controls[0]],
-    left: !!keys[p.controls[1]],
-    down: !!keys[p.controls[2]],
-    right: !!keys[p.controls[3]],
-    shoot: !!keys[' ']
-  };
-}
-
-function applyMove(state, input, dt){
-  let dx=0, dy=0;
-  if(input.up) dy -= 1;
-  if(input.down) dy += 1;
-  if(input.left) dx -= 1;
-  if(input.right) dx += 1;
-  if(dx!==0 && dy!==0){ const k=1/Math.sqrt(2); dx*=k; dy*=k; }
-  state.x += dx*speed*dt;
-  state.y += dy*speed*dt;
-}
-
-// CLIENT: predict movement + spawn local bullet immediately when shooting
-function clientTick(plIndex){
-  const p = players[plIndex];
-  const input = sampleInputFor(p);
-  p.inputHistory[tick] = input;
-  // move predicted
-  applyMove(p.pred, input, dt);
-
-  // if shooting and this is the shooter, spawn predicted bullet locally
-  if(p.isShooter && input.shoot && !p._justShot){
-    // spawn bullet from player heading to mouse-free forward (to the right) for demo simplicity
-    const id = nextBulletId++;
-    const angle = 0; // shoot right for demo
-    const vx = Math.cos(angle)*bulletSpeed;
-    const vy = Math.sin(angle)*bulletSpeed;
-    const b = {id, x:p.pred.x+20, y:p.pred.y, vx, vy, spawnTick: tick};
-    p.bulletsPred.push(b);
-    // send shoot event to server via serverIncoming with latency
-    serverIncoming.push({from:plIndex, tick, input, spawnBullet: b, sendTime: now(), latency: parseInt(lat.value)});
-    p._justShot = true; // simple debounce; will clear next tick when no shoot input
-  } else if(!input.shoot){
-    p._justShot = false;
-  } else {
-    // send standard input to server even when not shooting to keep authoritative position
-    serverIncoming.push({from:plIndex, tick, input, sendTime: now(), latency: parseInt(lat.value)});
-  }
-
-  // advance predicted bullets
-  p.bulletsPred.forEach(b => {
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
-  });
-
-  // naive client-side hit detection: check bulletsPred against predicted target position (uses p2.pred as target)
-  // But client-side uses its own predicted p2 state (we'll check and mark 'hit' locally)
-  if(plIndex === 0){
-    const target = players[1].pred;
-    p.bulletsPred.forEach(b=>{
-      if(!b.hit && Math.hypot(b.x - target.x, b.y - target.y) < 18){
-        b.hit = true;
-        b.hitTick = tick;
-        b.localHit = true; // client thinks hit
-        pushLog(`Client predicted bullet ${b.id} HIT at tick ${tick}`);
-      }
-    });
-  }
-}
-
-// SERVER: process incoming messages with latency and authoritative resolution
-function serverTick(){
-  const nowt = now();
-  for(let i = serverIncoming.length - 1; i >= 0; --i){
-    const msg = serverIncoming[i];
-    if(nowt - msg.sendTime >= msg.latency){
-      // apply movement input to serverState players
-      const idx = msg.from;
-      const s = serverState.players[idx];
-      applyMove(s, msg.input, 1/tickRate);
-      // if spawnBullet present, server spawns an authoritative bullet BUT server target (player 2) might have moved differently
-      if(msg.spawnBullet){
-        // server decides authoritative bullet initial pos slightly different (server uses its authoritative shooter pos)
-        const id = msg.spawnBullet.id;
-        const b = {
-          id,
-          x: s.x+20,
-          y: s.y,
-          vx: msg.spawnBullet.vx,
-          vy: msg.spawnBullet.vy,
-          spawnTick: msg.spawnBullet.spawnTick,
-          hit: false
-        };
-        serverState.bullets.push(b);
-      }
-      // now server performs bullet -> target collision detection for authoritative result
-      // advance server bullets for this tick (simple single-step for deterministic demo)
-      serverState.bullets.forEach(b=>{
-        if(b._consumed) return;
-        b.x += b.vx * (1/tickRate);
-        b.y += b.vy * (1/tickRate);
-        // check collision vs server target (players[1] server pos)
-        const target = serverState.players[1];
-        if(!b.hit && Math.hypot(b.x - target.x, b.y - target.y) < 18){
-          // decide hit or miss. To create dispute, the server sometimes dodge: let's move target slightly on server only
-          // For demo, let's occasionally dodge when target had specific tick parity
-          const dodge = (b.spawnTick % 2 === 0); // deterministic dodge rule for demo
-          if(dodge){
-            // server moves target out of way immediately (server-only dodge) before confirming hit
-            target.x += 40; // dodge right on server only
-            b.hit = false; // consider miss due to dodge
-            b._consumed = true;
-            // send authoritative correction: indicate a server correction for shooter's tick
-            serverToClientQueues[0].push({to:0, tick: b.spawnTick, correction:{type:'bullet_miss', bulletId: b.id, serverTarget:{x:target.x,y:target.y}}, sendTime: now(), latency: parseInt(lat.value)});
-            pushLog(`SERVER: bullet ${b.id} resolved as MISS due to server dodge at tick ${tick}`);
-          } else {
-            b.hit = true; b._consumed = true;
-            serverToClientQueues[0].push({to:0, tick: b.spawnTick, correction:{type:'bullet_hit', bulletId: b.id, serverTarget:{x:target.x,y:target.y}}, sendTime: now(), latency: parseInt(lat.value)});
-            pushLog(`SERVER: bullet ${b.id} resolved as HIT at tick ${tick}`);
-          }
-        }
-      });
-
-      // send server authoritative player positions periodically to both clients
-      serverToClientQueues.forEach((q, i)=>{
-        q.push({to:i, tick: msg.tick, correction:{type:'pos', pos: serverState.players[i]}, sendTime: now(), latency: parseInt(lat.value)});
-      });
-
-      serverIncoming.splice(i,1);
+  <meta charset="utf-8" />
+  <title>Combat Rollback — Bullet Hit Dispute (C1)</title>
+  <style>
+    body {
+      background: #060606;
+      color: #ddd;
+      font-family: monospace;
+      text-align: center;
     }
-  }
-}
 
-// CLIENT processes server->client messages and performs rollback when necessary
-function clientProcessServerMessages(plIndex){
-  const q = serverToClientQueues[plIndex];
-  const nowt = now();
-  for(let i = q.length - 1; i >= 0; --i){
-    const msg = q[i];
-    if(nowt - msg.sendTime >= msg.latency){
-      // handle correction
-      if(msg.correction.type === 'pos'){
-        // authoritative position for tick msg.tick; set player pred to that pos and replay inputs from tick+1..current
-        const p = players[plIndex];
-        p.pred.x = msg.correction.pos.x;
-        p.pred.y = msg.correction.pos.y;
-        // replay
-        for(let t = msg.tick+1; t <= tick; ++t){
-          const inp = p.inputHistory[t];
-          if(inp) applyMove(p.pred, inp, 1/tickRate);
+    canvas {
+      background: #0d0d10;
+      display: block;
+      margin: 10px auto;
+      border: 1px solid #222;
+    }
+
+    #ui {
+      margin: 8px auto;
+      width: 760px;
+    }
+
+    #log {
+      height: 80px;
+      overflow: auto;
+      font-size: 12px;
+      text-align: left;
+      background: #060606;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #222;
+      color: #bfbfbf;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Combat Rollback — Bullet Hit Dispute (Client predicts hit, server says miss)</h3>
+  <canvas id="game" width="760" height="400"></canvas>
+  <div id="ui">
+    Latency: <input id="lat" type="range" min="0" max="300" value="120"> <span id="latv">120</span> ms
+    <div style="font-size:13px; color:#bbb">P1 (cyan): WASD + SPACE to shoot • P2 (lime): IJKL (target)</div>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const lat = document.getElementById('lat');
+    const latv = document.getElementById('latv');
+    const log = document.getElementById('log');
+    lat.oninput = () => latv.innerText = lat.value;
+
+    const tickRate = 60;
+    const dt = 1 / tickRate;
+    let tick = 0;
+    function now() { return Date.now(); }
+
+    const keys = {};
+    document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    // Entities
+    function makePlayer(x, y, color, controls, isShooter = false) {
+      return {
+        color, controls, isShooter,
+        pred: { x, y }, server: { x, y },
+        inputHistory: {}, // tick -> input
+        bulletsPred: [], // local predicted bullets [{x,y,vx,vy,spawnTick, id}]
+        pendingToServer: []
+      };
+    }
+
+    const players = [
+      makePlayer(100, 200, 'cyan', ['w', 'a', 's', 'd'], true), // shooter
+      makePlayer(600, 200, 'lime', ['i', 'j', 'k', 'l'], false) // target
+    ];
+
+    // server state has authoritative target and bullets list
+    const serverState = {
+      players: [
+        { x: players[0].server.x, y: players[0].server.y },
+        { x: players[1].server.x, y: players[1].server.y },
+      ],
+      bullets: [] // server bullets (authoritative)
+    };
+
+    let serverIncoming = [];
+    let serverToClientQueues = [[], []];
+
+    const speed = 160;
+    const bulletSpeed = 520;
+    let nextBulletId = 1;
+
+    function pushLog(s) {
+      const time = new Date().toLocaleTimeString();
+      log.innerHTML = `[${time}] ${s}\n` + log.innerHTML;
+      if (log.childNodes.length > 200) log.removeChild(log.lastChild);
+    }
+
+    // sample input
+    function sampleInputFor(p) {
+      return {
+        up: !!keys[p.controls[0]],
+        left: !!keys[p.controls[1]],
+        down: !!keys[p.controls[2]],
+        right: !!keys[p.controls[3]],
+        shoot: !!keys[' ']
+      };
+    }
+
+    function applyMove(state, input, dt) {
+      let dx = 0, dy = 0;
+      if (input.up) dy -= 1;
+      if (input.down) dy += 1;
+      if (input.left) dx -= 1;
+      if (input.right) dx += 1;
+      if (dx !== 0 && dy !== 0) { const k = 1 / Math.sqrt(2); dx *= k; dy *= k; }
+      state.x += dx * speed * dt;
+      state.y += dy * speed * dt;
+    }
+
+    // CLIENT: predict movement + spawn local bullet immediately when shooting
+    function clientTick(plIndex) {
+      const p = players[plIndex];
+      const input = sampleInputFor(p);
+      p.inputHistory[tick] = input;
+      // move predicted
+      applyMove(p.pred, input, dt);
+
+      // if shooting and this is the shooter, spawn predicted bullet locally
+      if (p.isShooter && input.shoot && !p._justShot) {
+        // spawn bullet from player heading to mouse-free forward (to the right) for demo simplicity
+        const id = nextBulletId++;
+        const angle = 0; // shoot right for demo
+        const vx = Math.cos(angle) * bulletSpeed;
+        const vy = Math.sin(angle) * bulletSpeed;
+        const b = { id, x: p.pred.x + 20, y: p.pred.y, vx, vy, spawnTick: tick };
+        p.bulletsPred.push(b);
+        // send shoot event to server via serverIncoming with latency
+        serverIncoming.push({ from: plIndex, tick, input, spawnBullet: b, sendTime: now(), latency: parseInt(lat.value) });
+        p._justShot = true; // simple debounce; will clear next tick when no shoot input
+      } else if (!input.shoot) {
+        p._justShot = false;
+      } else {
+        // send standard input to server even when not shooting to keep authoritative position
+        serverIncoming.push({ from: plIndex, tick, input, sendTime: now(), latency: parseInt(lat.value) });
+      }
+
+      // advance predicted bullets
+      p.bulletsPred.forEach(b => {
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+      });
+
+      // naive client-side hit detection: check bulletsPred against predicted target position (uses p2.pred as target)
+      // But client-side uses its own predicted p2 state (we'll check and mark 'hit' locally)
+      if (plIndex === 0) {
+        const target = players[1].pred;
+        p.bulletsPred.forEach(b => {
+          if (!b.hit && Math.hypot(b.x - target.x, b.y - target.y) < 18) {
+            b.hit = true;
+            b.hitTick = tick;
+            b.localHit = true; // client thinks hit
+            pushLog(`Client predicted bullet ${b.id} HIT at tick ${tick}`);
+          }
+        });
+      }
+    }
+
+    // SERVER: process incoming messages with latency and authoritative resolution
+    function serverTick() {
+      const nowt = now();
+      for (let i = serverIncoming.length - 1; i >= 0; --i) {
+        const msg = serverIncoming[i];
+        if (nowt - msg.sendTime >= msg.latency) {
+          // apply movement input to serverState players
+          const idx = msg.from;
+          const s = serverState.players[idx];
+          applyMove(s, msg.input, 1 / tickRate);
+          // if spawnBullet present, server spawns an authoritative bullet BUT server target (player 2) might have moved differently
+          if (msg.spawnBullet) {
+            // server decides authoritative bullet initial pos slightly different (server uses its authoritative shooter pos)
+            const id = msg.spawnBullet.id;
+            const b = {
+              id,
+              x: s.x + 20,
+              y: s.y,
+              vx: msg.spawnBullet.vx,
+              vy: msg.spawnBullet.vy,
+              spawnTick: msg.spawnBullet.spawnTick,
+              hit: false
+            };
+            serverState.bullets.push(b);
+          }
+          // now server performs bullet -> target collision detection for authoritative result
+          // advance server bullets for this tick (simple single-step for deterministic demo)
+          serverState.bullets.forEach(b => {
+            if (b._consumed) return;
+            b.x += b.vx * (1 / tickRate);
+            b.y += b.vy * (1 / tickRate);
+            // check collision vs server target (players[1] server pos)
+            const target = serverState.players[1];
+            if (!b.hit && Math.hypot(b.x - target.x, b.y - target.y) < 18) {
+              // decide hit or miss. To create dispute, the server sometimes dodge: let's move target slightly on server only
+              // For demo, let's occasionally dodge when target had specific tick parity
+              const dodge = (b.spawnTick % 2 === 0); // deterministic dodge rule for demo
+              if (dodge) {
+                // server moves target out of way immediately (server-only dodge) before confirming hit
+                target.x += 40; // dodge right on server only
+                b.hit = false; // consider miss due to dodge
+                b._consumed = true;
+                // send authoritative correction: indicate a server correction for shooter's tick
+                serverToClientQueues[0].push({ to: 0, tick: b.spawnTick, correction: { type: 'bullet_miss', bulletId: b.id, serverTarget: { x: target.x, y: target.y } }, sendTime: now(), latency: parseInt(lat.value) });
+                pushLog(`SERVER: bullet ${b.id} resolved as MISS due to server dodge at tick ${tick}`);
+              } else {
+                b.hit = true; b._consumed = true;
+                serverToClientQueues[0].push({ to: 0, tick: b.spawnTick, correction: { type: 'bullet_hit', bulletId: b.id, serverTarget: { x: target.x, y: target.y } }, sendTime: now(), latency: parseInt(lat.value) });
+                pushLog(`SERVER: bullet ${b.id} resolved as HIT at tick ${tick}`);
+              }
+            }
+          });
+
+          // send server authoritative player positions periodically to both clients
+          serverToClientQueues.forEach((q, i) => {
+            q.push({ to: i, tick: msg.tick, correction: { type: 'pos', pos: serverState.players[i] }, sendTime: now(), latency: parseInt(lat.value) });
+          });
+
+          serverIncoming.splice(i, 1);
         }
-        pushLog(`Client ${plIndex+1} pos corrected to server pos for tick ${msg.tick}`);
-        pushRollbackFlash(plIndex, msg.tick);
-      } else if(msg.correction.type === 'bullet_miss' || msg.correction.type === 'bullet_hit'){
-        // shooter (player 0) handles bullet corrections
-        if(plIndex === 0){
-          const p = players[0];
-          // find the predicted bullet with id and mark as corrected
-          const b = p.bulletsPred.find(x=>x.id === msg.correction.bulletId);
-          if(b){
-            if(msg.correction.type === 'bullet_miss'){
-              b.serverResolved = 'miss';
-              pushLog(`Client: server says bullet ${b.id} was MISS -> will rollback`);
-              // rollback to spawnTick state: set shooter predicted pos to server pos for spawnTick (we assume server sent pos separately too)
-              // For demo simplicity, we do: set shooter pred to server pos from serverState players[0] included earlier via pos message (handled above)
-              // Remove local hit if any
-              b.localHit = false;
-              // Visual flash and correction
-              pushRollbackFlash(0, msg.tick);
-            } else {
-              b.serverResolved = 'hit';
-              pushLog(`Client: server says bullet ${b.id} was HIT`);
+      }
+    }
+
+    // CLIENT processes server->client messages and performs rollback when necessary
+    function clientProcessServerMessages(plIndex) {
+      const q = serverToClientQueues[plIndex];
+      const nowt = now();
+      for (let i = q.length - 1; i >= 0; --i) {
+        const msg = q[i];
+        if (nowt - msg.sendTime >= msg.latency) {
+          // handle correction
+          if (msg.correction.type === 'pos') {
+            // authoritative position for tick msg.tick; set player pred to that pos and replay inputs from tick+1..current
+            const p = players[plIndex];
+            p.pred.x = msg.correction.pos.x;
+            p.pred.y = msg.correction.pos.y;
+            // replay
+            for (let t = msg.tick + 1; t <= tick; ++t) {
+              const inp = p.inputHistory[t];
+              if (inp) applyMove(p.pred, inp, 1 / tickRate);
+            }
+            pushLog(`Client ${plIndex + 1} pos corrected to server pos for tick ${msg.tick}`);
+            pushRollbackFlash(plIndex, msg.tick);
+          } else if (msg.correction.type === 'bullet_miss' || msg.correction.type === 'bullet_hit') {
+            // shooter (player 0) handles bullet corrections
+            if (plIndex === 0) {
+              const p = players[0];
+              // find the predicted bullet with id and mark as corrected
+              const b = p.bulletsPred.find(x => x.id === msg.correction.bulletId);
+              if (b) {
+                if (msg.correction.type === 'bullet_miss') {
+                  b.serverResolved = 'miss';
+                  pushLog(`Client: server says bullet ${b.id} was MISS -> will rollback`);
+                  // rollback to spawnTick state: set shooter predicted pos to server pos for spawnTick (we assume server sent pos separately too)
+                  // For demo simplicity, we do: set shooter pred to server pos from serverState players[0] included earlier via pos message (handled above)
+                  // Remove local hit if any
+                  b.localHit = false;
+                  // Visual flash and correction
+                  pushRollbackFlash(0, msg.tick);
+                } else {
+                  b.serverResolved = 'hit';
+                  pushLog(`Client: server says bullet ${b.id} was HIT`);
+                }
+              }
             }
           }
+          q.splice(i, 1);
         }
       }
-      q.splice(i,1);
     }
-  }
-}
 
-// push rollback flash
-let flashes = [];
-function pushRollbackFlash(playerIndex, rollbackTick){
-  flashes.push({playerIndex, rollbackTick, created: now()});
-}
+    // push rollback flash
+    let flashes = [];
+    function pushRollbackFlash(playerIndex, rollbackTick) {
+      flashes.push({ playerIndex, rollbackTick, created: now() });
+    }
 
-// draw
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  // draw arena
-  ctx.fillStyle = '#101018'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    // draw
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // draw arena
+      ctx.fillStyle = '#101018'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // draw players: server ghost (semi) + pred solid
-  players.forEach((p,i)=>{
-    // server ghost if available
-    ctx.globalAlpha = 0.45;
-    ctx.fillStyle = p.color;
-    const s = serverState.players[i];
-    ctx.fillRect(s.x - 14, s.y - 14, 28, 28);
-    ctx.globalAlpha = 1.0;
+      // draw players: server ghost (semi) + pred solid
+      players.forEach((p, i) => {
+        // server ghost if available
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = p.color;
+        const s = serverState.players[i];
+        ctx.fillRect(s.x - 14, s.y - 14, 28, 28);
+        ctx.globalAlpha = 1.0;
 
-    // predicted
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.pred.x - 12, p.pred.y - 12, 24, 24);
-  });
+        // predicted
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.pred.x - 12, p.pred.y - 12, 24, 24);
+      });
 
-  // draw predicted bullets (shooter only)
-  const shooter = players[0];
-  shooter.bulletsPred.forEach(b=>{
-    ctx.fillStyle = b.localHit ? 'gold' : 'white';
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 5, 0, Math.PI*2);
-    ctx.fill();
-    // label id
-    ctx.fillStyle = '#333';
-    ctx.fillText(String(b.id), b.x-3, b.y+3);
-  });
+      // draw predicted bullets (shooter only)
+      const shooter = players[0];
+      shooter.bulletsPred.forEach(b => {
+        ctx.fillStyle = b.localHit ? 'gold' : 'white';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // label id
+        ctx.fillStyle = '#333';
+        ctx.fillText(String(b.id), b.x - 3, b.y + 3);
+      });
 
-  // draw server bullets (authoritative) for reference
-  ctx.globalAlpha = 0.45;
-  serverState.bullets.forEach(b=>{
-    ctx.fillStyle = b.hit ? 'orange' : 'white';
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 5, 0, Math.PI*2);
-    ctx.fill();
-  });
-  ctx.globalAlpha = 1.0;
+      // draw server bullets (authoritative) for reference
+      ctx.globalAlpha = 0.45;
+      serverState.bullets.forEach(b => {
+        ctx.fillStyle = b.hit ? 'orange' : 'white';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1.0;
 
-  // rollback flashes
-  const nowt = now();
-  flashes = flashes.filter(f=>{
-    const age = nowt - f.created;
-    if(age > 900) return false;
-    const a = 1 - (age / 900);
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    const p = players[f.playerIndex];
-    ctx.strokeRect(p.pred.x - 20, p.pred.y - 20, 40, 40);
-    ctx.restore();
-    return true;
-  });
+      // rollback flashes
+      const nowt = now();
+      flashes = flashes.filter(f => {
+        const age = nowt - f.created;
+        if (age > 900) return false;
+        const a = 1 - (age / 900);
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        const p = players[f.playerIndex];
+        ctx.strokeRect(p.pred.x - 20, p.pred.y - 20, 40, 40);
+        ctx.restore();
+        return true;
+      });
 
-  // HUD
-  ctx.fillStyle = '#ddd'; ctx.font = '13px monospace';
-  ctx.fillText(`Tick: ${tick}`, 8, 14);
-}
+      // HUD
+      ctx.fillStyle = '#ddd'; ctx.font = '13px monospace';
+      ctx.fillText(`Tick: ${tick}`, 8, 14);
+    }
 
-// main game loop
-function gameLoop(){
-  tick++;
-  // clients sample and predict
-  players.forEach((_, idx)=> clientTick(idx));
-  // server processes incoming messages now (simulate at same tick rate)
-  serverTick();
-  // clients process server->client messages (arrived)
-  players.forEach((_, idx)=> clientProcessServerMessages(idx));
-  // draw
-  draw();
-}
+    // main game loop
+    function gameLoop() {
+      tick++;
+      // clients sample and predict
+      players.forEach((_, idx) => clientTick(idx));
+      // server processes incoming messages now (simulate at same tick rate)
+      serverTick();
+      // clients process server->client messages (arrived)
+      players.forEach((_, idx) => clientProcessServerMessages(idx));
+      // draw
+      draw();
+    }
 
-// push periodic server authoritative positions (to keep clients in sync)
-setInterval(()=>{
-  // send current server positions to clients (with latency)
-  serverToClientQueues.forEach((q, idx)=>{
-    q.push({to:idx, tick, correction:{type:'pos', pos: serverState.players[idx]}, sendTime: now(), latency: parseInt(lat.value)});
-  });
-}, 250);
+    // push periodic server authoritative positions (to keep clients in sync)
+    setInterval(() => {
+      // send current server positions to clients (with latency)
+      serverToClientQueues.forEach((q, idx) => {
+        q.push({ to: idx, tick, correction: { type: 'pos', pos: serverState.players[idx] }, sendTime: now(), latency: parseInt(lat.value) });
+      });
+    }, 250);
 
-// advance server bullets in a background interval for consistent serverState visuals
-setInterval(()=>{
-  // advance server bullets a single step (to keep displayed)
-  serverState.bullets.forEach(b=>{
-    if(!b._consumed) { b.x += b.vx * (1/tickRate); b.y += b.vy * (1/tickRate); }
-  });
-}, 1000/tickRate);
+    // advance server bullets in a background interval for consistent serverState visuals
+    setInterval(() => {
+      // advance server bullets a single step (to keep displayed)
+      serverState.bullets.forEach(b => {
+        if (!b._consumed) { b.x += b.vx * (1 / tickRate); b.y += b.vy * (1 / tickRate); }
+      });
+    }, 1000 / tickRate);
 
-setInterval(gameLoop, 1000/tickRate);
+    setInterval(gameLoop, 1000 / tickRate);
 
-// initial messages
-pushLog("Demo ready. Shoot with SPACE as P1. Server uses deterministic 'dodge' rule to create disputes -> triggers rollback.");
-</script>
+    // initial messages
+    pushLog("Demo ready. Shoot with SPACE as P1. Server uses deterministic 'dodge' rule to create disputes -> triggers rollback.");
+  </script>
 </body>
+
 </html>

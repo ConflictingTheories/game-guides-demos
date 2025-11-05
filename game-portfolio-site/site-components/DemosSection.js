@@ -19,6 +19,11 @@ class DemosSection {
                 <p>Sample Shader Demo.</p>
                 <a href="demos/shader.html">Play Demo</a>
             </div>
+             <div class="demo-item">
+                <h3>Particles Demo</h3>
+                <p>Sample showing particle effects and interactions.</p>
+                <a href="demos/particles/index.html">Play Demo</a>
+            </div>
             <div class="demo-item">
                 <h3>Melee Network Demo</h3>
                 <p>Melee fighting latemcy simulation demo with server authority.</p>

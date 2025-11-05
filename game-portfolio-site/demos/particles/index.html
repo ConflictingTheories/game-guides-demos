@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPU Particle Network</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #fff;
+      display: flex;
+      height: 100vh;
+    }
+
+    .sidebar {
+      width: 300px;
+      padding: 20px;
+      background: #222;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+    }
+
+    .sidebar h1 {
+      margin-top: 0;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .controls label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .controls input {
+      width: 100%;
+    }
+
+    .controls button {
+      padding: 10px;
+      background: #444;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .controls button:hover {
+      background: #555;
+    }
+
+    .main {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .visualizations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      flex: 1;
+    }
+
+    canvas {
+      border: 1px solid #333;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar">
+    <h1>GPU Particle Network</h1>
+    <div class="controls">
+      <label>Point Count: <input type="number" id="count" value="100000" min="1000" max="200000"></label>
+      <label>Scale: <input type="range" id="scale" min="0.1" max="3" step="0.01" value="1"></label>
+      <label>Rotation: <input type="range" id="rot" min="0" max="0.1" step="0.001" value="0.01"></label>
+      <label>Intensity: <input type="range" id="intensity" min="0" max="2" step="0.01" value="1"></label>
+      <label>Radius: <input type="range" id="radius" min="0" max="0.2" step="0.001" value="0.05"></label>
+      <label>Line Distance: <input type="range" id="line" min="0" max="0.2" step="0.001" value="0.05"></label>
+      <button id="reset">Reset</button>
+      <button id="add">Add Visualization</button>
+      <button id="remove">Remove Visualization</button>
+    </div>
+  </div>
+  <div class="main">
+    <div id="visualizations" class="visualizations"></div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+
+</html>

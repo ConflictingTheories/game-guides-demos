@@ -1,23 +1,101 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>DOOD! — WEBGL 2.0 ISOMETRIC (100% RENDERING)</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#111;color:#ff6b9d;font-family:monospace;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden}
-    canvas{border:4px solid #ff6b9d;border-radius:12px;background:#222;margin:20px;max-width:100%}
-    h1{font-size:32px;text-align:center;margin:10px;color:#ff6b9d;text-shadow:0 0 10px #ff0000}
-    p{font-size:18px;text-align:center;margin:10px;color:#ccc}
-    .ui{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px}
-    .btn{background:#ff6b9d;color:#000;padding:10px 18px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;font-size:15px}
-    .btn:hover{background:#ff8bb3}
-    .status{color:#0f0;font-weight:bold;margin:10px}
-    .prinny{font-size:50px;margin:20px;animation:boom 1s infinite}
-    @keyframes boom{0%,100%{transform:scale(1)}50%{transform:scale(1.3);color:#ff0000}}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    body {
+      background: #111;
+      color: #ff6b9d;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden
+    }
+
+    canvas {
+      border: 4px solid #ff6b9d;
+      border-radius: 12px;
+      background: #222;
+      margin: 20px;
+      max-width: 100%
+    }
+
+    h1 {
+      font-size: 32px;
+      text-align: center;
+      margin: 10px;
+      color: #ff6b9d;
+      text-shadow: 0 0 10px #ff0000
+    }
+
+    p {
+      font-size: 18px;
+      text-align: center;
+      margin: 10px;
+      color: #ccc
+    }
+
+    .ui {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 10px
+    }
+
+    .btn {
+      background: #ff6b9d;
+      color: #000;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px
+    }
+
+    .btn:hover {
+      background: #ff8bb3
+    }
+
+    .status {
+      color: #0f0;
+      font-weight: bold;
+      margin: 10px
+    }
+
+    .prinny {
+      font-size: 50px;
+      margin: 20px;
+      animation: boom 1s infinite
+    }
+
+    @keyframes boom {
+
+      0%,
+      100% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.3);
+        color: #ff0000
+      }
+    }
   </style>
 </head>
+
 <body>
 
   <h1>DOOD! — WEBGL 2.0 ISOMETRIC</h1>
@@ -92,11 +170,11 @@
     // === VERTEX DATA (QUAD) ===
     const quad = new Float32Array([
       -0.5, -0.5,
-       0.5, -0.5,
-      -0.5,  0.5,
-       0.5, -0.5,
-       0.5,  0.5,
-      -0.5,  0.5
+      0.5, -0.5,
+      -0.5, 0.5,
+      0.5, -0.5,
+      0.5, 0.5,
+      -0.5, 0.5
     ]);
     const quadVBO = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
@@ -109,39 +187,39 @@
     // === MATH (ORTHO + LOOKAT) ===
     function ortho(left, right, bottom, top, near, far) {
       const m = new Float32Array(16);
-      m[0] = 2/(right-left); m[5] = 2/(top-bottom); m[10] = -2/(far-near);
-      m[12] = -(right+left)/(right-left); m[13] = -(top+bottom)/(top-bottom); m[14] = -(far+near)/(far-near); m[15] = 1;
+      m[0] = 2 / (right - left); m[5] = 2 / (top - bottom); m[10] = -2 / (far - near);
+      m[12] = -(right + left) / (right - left); m[13] = -(top + bottom) / (top - bottom); m[14] = -(far + near) / (far - near); m[15] = 1;
       return m;
     }
 
     function lookAt(eye, center, up) {
-      const f = [center[0]-eye[0], center[1]-eye[1], center[2]-eye[2]];
-      const fl = Math.hypot(...f); const fn = f.map(x=>x/fl);
-      const s = [up[1]*fn[2]-up[2]*fn[1], up[2]*fn[0]-up[0]*fn[2], up[0]*fn[1]-up[1]*fn[0]];
-      const sl = Math.hypot(...s); const sn = s.map(x=>x/sl);
-      const u = [fn[1]*sn[2]-fn[2]*sn[1], fn[2]*sn[0]-fn[0]*sn[2], fn[0]*sn[1]-fn[1]*sn[0]];
+      const f = [center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]];
+      const fl = Math.hypot(...f); const fn = f.map(x => x / fl);
+      const s = [up[1] * fn[2] - up[2] * fn[1], up[2] * fn[0] - up[0] * fn[2], up[0] * fn[1] - up[1] * fn[0]];
+      const sl = Math.hypot(...s); const sn = s.map(x => x / sl);
+      const u = [fn[1] * sn[2] - fn[2] * sn[1], fn[2] * sn[0] - fn[0] * sn[2], fn[0] * sn[1] - fn[1] * sn[0]];
       const m = new Float32Array(16);
-      m[0]=sn[0]; m[1]=u[0]; m[2]=-fn[0];
-      m[4]=sn[1]; m[5]=u[1]; m[6]=-fn[1];
-      m[8]=sn[2]; m[9]=u[2]; m[10]=-fn[2];
-      m[12]=-(sn[0]*eye[0]+sn[1]*eye[1]+sn[2]*eye[2]);
-      m[13]=-(u[0]*eye[0]+u[1]*eye[1]+u[2]*eye[2]);
-      m[14]=fn[0]*eye[0]+fn[1]*eye[1]+fn[2]*eye[2];
-      m[15]=1;
+      m[0] = sn[0]; m[1] = u[0]; m[2] = -fn[0];
+      m[4] = sn[1]; m[5] = u[1]; m[6] = -fn[1];
+      m[8] = sn[2]; m[9] = u[2]; m[10] = -fn[2];
+      m[12] = -(sn[0] * eye[0] + sn[1] * eye[1] + sn[2] * eye[2]);
+      m[13] = -(u[0] * eye[0] + u[1] * eye[1] + u[2] * eye[2]);
+      m[14] = fn[0] * eye[0] + fn[1] * eye[1] + fn[2] * eye[2];
+      m[15] = 1;
       return m;
     }
 
     function mul(a, b) {
       const o = new Float32Array(16);
-      for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++) o[i*4+j] += a[i*4+k]*b[k*4+j];
+      for (let i = 0; i < 4; i++)for (let j = 0; j < 4; j++)for (let k = 0; k < 4; k++) o[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
       return o;
     }
 
     function getMVP() {
       const proj = ortho(-20, 20, -15, 15, 0.1, 100);
-      const view = lookAt([10, 18, 10], [10, 0, 10], [0,1,0]);
-      const rotY = (a => { const c=Math.cos(a),s=Math.sin(a); const m=new Float32Array(16); m[0]=c;m[2]=-s;m[5]=1;m[8]=s;m[10]=c;m[15]=1; return m; })(-Math.PI/4);
-      const rotX = (a => { const c=Math.cos(a),s=Math.sin(a); const m=new Float32Array(16); m[0]=1;m[5]=c;m[6]=s;m[9]=-s;m[10]=c;m[15]=1; return m; })(-Math.PI/6);
+      const view = lookAt([10, 18, 10], [10, 0, 10], [0, 1, 0]);
+      const rotY = (a => { const c = Math.cos(a), s = Math.sin(a); const m = new Float32Array(16); m[0] = c; m[2] = -s; m[5] = 1; m[8] = s; m[10] = c; m[15] = 1; return m; })(-Math.PI / 4);
+      const rotX = (a => { const c = Math.cos(a), s = Math.sin(a); const m = new Float32Array(16); m[0] = 1; m[5] = c; m[6] = s; m[9] = -s; m[10] = c; m[15] = 1; return m; })(-Math.PI / 6);
       return mul(proj, mul(view, mul(rotY, rotX)));
     }
 
@@ -149,29 +227,29 @@
 
     // === GRID & UNITS ===
     const W = 16, D = 12;
-    const grid = Array(W*D).fill().map(()=>({geo:0, unit:null}));
+    const grid = Array(W * D).fill().map(() => ({ geo: 0, unit: null }));
 
     class Unit {
-      constructor(x,z,team,type,name,color) {
-        this.x=x; this.z=z; this.team=team; this.type=type; this.name=name; this.color=color;
-        grid[x+z*W].unit=this;
+      constructor(x, z, team, type, name, color) {
+        this.x = x; this.z = z; this.team = team; this.type = type; this.name = name; this.color = color;
+        grid[x + z * W].unit = this;
       }
     }
 
     const units = [
-      new Unit(3,3,0,0,"HERO",[0,1,1,1]),
-      new Unit(4,4,0,1,"PRINNY",[1,0.8,0,1]),
-      new Unit(10,7,1,2,"ENEMY",[1,0,0,1])
+      new Unit(3, 3, 0, 0, "HERO", [0, 1, 1, 1]),
+      new Unit(4, 4, 0, 1, "PRINNY", [1, 0.8, 0, 1]),
+      new Unit(10, 7, 1, 2, "ENEMY", [1, 0, 0, 1])
     ];
 
     // Geo Panels
-    for(let x=6;x<9;x++)for(let z=5;z<8;z++) grid[x+z*W].geo=1;
-    grid[7+6*W].geo=2;
+    for (let x = 6; x < 9; x++)for (let z = 5; z < 8; z++) grid[x + z * W].geo = 1;
+    grid[7 + 6 * W].geo = 2;
 
     let selected = null;
 
     // === RENDER DATA ===
-    const maxInstances = W*D + 50;
+    const maxInstances = W * D + 50;
     const offsets = new Float32Array(maxInstances * 3);
     const colors = new Float32Array(maxInstances * 4);
     let count = 0;
@@ -180,9 +258,9 @@
       const wx = (x - z) * 0.5 - 5;
       const wz = (x + z) * 0.5 - 4;
       const i = count * 3;
-      offsets[i] = wx; offsets[i+1] = h; offsets[i+2] = wz;
+      offsets[i] = wx; offsets[i + 1] = h; offsets[i + 2] = wz;
       const j = count * 4;
-      colors[j] = r; colors[j+1] = g; colors[j+2] = b; colors[j+3] = a;
+      colors[j] = r; colors[j + 1] = g; colors[j + 2] = b; colors[j + 3] = a;
       count++;
     }
 
@@ -193,29 +271,29 @@
       count = 0;
 
       // Grid
-      for(let x=0;x<W;x++)for(let z=0;z<D;z++){
-        const geo = grid[x+z*W].geo;
-        const [r,g,b,a] = geo===1?[1,0,0,0.6]:geo===2?[0,0,1,0.9]:[0.2,0.2,0.25,0.9];
-        addInstance(x, z, 0, r,g,b,a);
+      for (let x = 0; x < W; x++)for (let z = 0; z < D; z++) {
+        const geo = grid[x + z * W].geo;
+        const [r, g, b, a] = geo === 1 ? [1, 0, 0, 0.6] : geo === 2 ? [0, 0, 1, 0.9] : [0.2, 0.2, 0.25, 0.9];
+        addInstance(x, z, 0, r, g, b, a);
       }
 
       // Units
       units.forEach(u => {
         if (!u) return;
-        const [r,g,b,a] = u.color;
-        const h = u === selected ? 0.8 + Math.sin(Date.now()*0.008)*0.1 : 0.7;
-        addInstance(u.x, u.z, h, r,g,b,a);
+        const [r, g, b, a] = u.color;
+        const h = u === selected ? 0.8 + Math.sin(Date.now() * 0.008) * 0.1 : 0.7;
+        addInstance(u.x, u.z, h, r, g, b, a);
       });
 
       // Upload
       gl.bindBuffer(gl.ARRAY_BUFFER, offsetVBO);
-      gl.bufferData(gl.ARRAY_BUFFER, offsets.subarray(0, count*3), gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, offsets.subarray(0, count * 3), gl.DYNAMIC_DRAW);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(1);
       gl.vertexAttribDivisor(1, 1);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, colorVBO);
-      gl.bufferData(gl.ARRAY_BUFFER, colors.subarray(0, count*4), gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, colors.subarray(0, count * 4), gl.DYNAMIC_DRAW);
       gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(2);
       gl.vertexAttribDivisor(2, 1);
@@ -234,7 +312,7 @@
       const hero = units.find(u => u.name === "HERO");
       if (!hero) return;
       hero.x = (hero.x + 1) % W;
-      hero.z = Math.max(0, Math.min(D-1, hero.z));
+      hero.z = Math.max(0, Math.min(D - 1, hero.z));
       status("HERO MOVED!");
     };
 
@@ -248,8 +326,8 @@
     };
 
     document.getElementById('geoBtn').onclick = () => {
-      for(let i=0;i<grid.length;i++) if(grid[i].geo===1) grid[i].geo=0;
-      grid[7+6*W].geo=0;
+      for (let i = 0; i < grid.length; i++) if (grid[i].geo === 1) grid[i].geo = 0;
+      grid[7 + 6 * W].geo = 0;
       status("GEO CHAIN ACTIVATED!");
     };
 
@@ -267,4 +345,5 @@
   </script>
 
 </body>
+
 </html>

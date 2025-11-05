@@ -1,139 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Disgaea Spell Builder</title>
-<style>
-body { margin:0; overflow:hidden; background:#111; font-family:sans-serif; color:#fff; }
-#ui { position:absolute; top:10px; left:10px; z-index:10; }
-button { margin-right:5px; }
-canvas { display:block; }
-</style>
-</head>
-<body>
-<div id="ui">
-  <span>Spell:</span>
-  <button onclick="selectSpell('Fire')">Fire</button>
-  <button onclick="selectSpell('Ice')">Ice</button>
-  <button onclick="selectSpell('Lightning')">Lightning</button>
-  <span> | AoE:</span>
-  <button onclick="selectAOE('Cross')">Cross</button>
-  <button onclick="selectAOE('Square')">Square</button>
-  <button onclick="selectAOE('LShape')">L-Shape</button>
-</div>
-<canvas id="battle"></canvas>
-<script>
-const canvas=document.getElementById('battle');
-const ctx=canvas.getContext('2d');
-const tileSize=64, gridW=5, gridH=5;
-canvas.width=gridW*tileSize; canvas.height=gridH*tileSize;
-
-let mouse={x:0,y:0};
-let spellPreview=[];
-let selectedSpell='Fire';
-let selectedAOE='Cross';
-
-const spells={
-  'Fire': {color:'rgba(255,69,0,0.8)', dmg:100, particleColor:[255,69,0]},
-  'Ice': {color:'rgba(0,200,255,0.7)', dmg:80, particleColor:[0,200,255]},
-  'Lightning': {color:'rgba(255,255,0,0.8)', dmg:120, particleColor:[255,255,0]}
-};
-
-const aoes={
-  'Cross': [[0,0],[1,0],[-1,0],[0,1],[0,-1]],
-  'Square': [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]],
-  'LShape': [[0,0],[1,0],[2,0],[0,1],[0,2]]
-};
-
-let effects=[];
-let floatingNumbers=[];
-
-function selectSpell(name){selectedSpell=name;}
-function selectAOE(name){selectedAOE=name;}
-
-canvas.addEventListener('mousemove', e=>{
-  mouse.x=Math.floor(e.offsetX/tileSize);
-  mouse.y=Math.floor(e.offsetY/tileSize);
-  updatePreview();
-  drawBattlefield();
-});
-
-canvas.addEventListener('click', e=>{
-  castSpell(mouse.x, mouse.y);
-});
-
-function updatePreview(){
-  spellPreview=[];
-  aoes[selectedAOE].forEach(([dx,dy])=>{
-    const x=mouse.x+dx, y=mouse.y+dy;
-    if(x>=0 && x<gridW && y>=0 && y<gridH) spellPreview.push([x,y]);
-  });
-}
-
-function castSpell(x,y){
-  spellPreview.forEach(([tx,ty])=>{
-    // Particle effect
-    for(let i=0;i<5;i++){
-      effects.push({x:tx+Math.random(),y:ty+Math.random(),vx:(Math.random()-0.5)*0.1,vy:-0.1,age:0,ttl:30,color:spells[selectedSpell].particleColor});
+  <meta charset="UTF-8">
+  <title>Disgaea Spell Builder</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      font-family: sans-serif;
+      color: #fff;
     }
-    // Floating number
-    floatingNumbers.push({x:tx+0.5,y:ty+0.2,value:spells[selectedSpell].dmg,age:0,ttl:40});
-  });
-}
 
-function drawGrid(){
-  ctx.strokeStyle='#fff';
-  ctx.lineWidth=1;
-  for(let x=0;x<=gridW;x++){
-    ctx.beginPath(); ctx.moveTo(x*tileSize,0); ctx.lineTo(x*tileSize,canvas.height); ctx.stroke();
-  }
-  for(let y=0;y<=gridH;y++){
-    ctx.beginPath(); ctx.moveTo(0,y*tileSize); ctx.lineTo(canvas.width,y*tileSize); ctx.stroke();
-  }
-}
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+    }
 
-function drawPreview(){
-  spellPreview.forEach(([x,y])=>{
-    ctx.fillStyle=spells[selectedSpell].color;
-    ctx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
-  });
-}
+    button {
+      margin-right: 5px;
+    }
 
-function drawEffects(){
-  effects.forEach((p,i)=>{
-    p.age++;
-    if(p.age>p.ttl){ effects.splice(i,1); return; }
-    ctx.fillStyle=`rgba(${p.color[0]},${p.color[1]},${p.color[2]},${1-p.age/p.ttl})`;
-    ctx.beginPath();
-    ctx.arc(p.x*tileSize,p.y*tileSize,tileSize/6,0,Math.PI*2);
-    ctx.fill();
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.01;
-  });
-}
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
 
-function drawFloatingNumbers(){
-  floatingNumbers.forEach((n,i)=>{
-    n.age++;
-    if(n.age>n.ttl){ floatingNumbers.splice(i,1); return; }
-    ctx.fillStyle=`rgba(255,255,255,${1-n.age/n.ttl})`;
-    ctx.font='20px sans-serif';
-    ctx.fillText(n.value,n.x*tileSize,n.y*tileSize - n.age);
-  });
-}
+<body>
+  <div id="ui">
+    <span>Spell:</span>
+    <button onclick="selectSpell('Fire')">Fire</button>
+    <button onclick="selectSpell('Ice')">Ice</button>
+    <button onclick="selectSpell('Lightning')">Lightning</button>
+    <span> | AoE:</span>
+    <button onclick="selectAOE('Cross')">Cross</button>
+    <button onclick="selectAOE('Square')">Square</button>
+    <button onclick="selectAOE('LShape')">L-Shape</button>
+  </div>
+  <canvas id="battle"></canvas>
+  <script>
+    const canvas = document.getElementById('battle');
+    const ctx = canvas.getContext('2d');
+    const tileSize = 64, gridW = 5, gridH = 5;
+    canvas.width = gridW * tileSize; canvas.height = gridH * tileSize;
 
-function drawBattlefield(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawGrid();
-  drawPreview();
-  drawEffects();
-  drawFloatingNumbers();
-}
+    let mouse = { x: 0, y: 0 };
+    let spellPreview = [];
+    let selectedSpell = 'Fire';
+    let selectedAOE = 'Cross';
 
-function loop(){
-  drawBattlefield();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
+    const spells = {
+      'Fire': { color: 'rgba(255,69,0,0.8)', dmg: 100, particleColor: [255, 69, 0] },
+      'Ice': { color: 'rgba(0,200,255,0.7)', dmg: 80, particleColor: [0, 200, 255] },
+      'Lightning': { color: 'rgba(255,255,0,0.8)', dmg: 120, particleColor: [255, 255, 0] }
+    };
+
+    const aoes = {
+      'Cross': [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]],
+      'Square': [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]],
+      'LShape': [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]]
+    };
+
+    let effects = [];
+    let floatingNumbers = [];
+
+    function selectSpell(name) { selectedSpell = name; }
+    function selectAOE(name) { selectedAOE = name; }
+
+    canvas.addEventListener('mousemove', e => {
+      mouse.x = Math.floor(e.offsetX / tileSize);
+      mouse.y = Math.floor(e.offsetY / tileSize);
+      updatePreview();
+      drawBattlefield();
+    });
+
+    canvas.addEventListener('click', e => {
+      castSpell(mouse.x, mouse.y);
+    });
+
+    function updatePreview() {
+      spellPreview = [];
+      aoes[selectedAOE].forEach(([dx, dy]) => {
+        const x = mouse.x + dx, y = mouse.y + dy;
+        if (x >= 0 && x < gridW && y >= 0 && y < gridH) spellPreview.push([x, y]);
+      });
+    }
+
+    function castSpell(x, y) {
+      spellPreview.forEach(([tx, ty]) => {
+        // Particle effect
+        for (let i = 0; i < 5; i++) {
+          effects.push({ x: tx + Math.random(), y: ty + Math.random(), vx: (Math.random() - 0.5) * 0.1, vy: -0.1, age: 0, ttl: 30, color: spells[selectedSpell].particleColor });
+        }
+        // Floating number
+        floatingNumbers.push({ x: tx + 0.5, y: ty + 0.2, value: spells[selectedSpell].dmg, age: 0, ttl: 40 });
+      });
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= gridW; x++) {
+        ctx.beginPath(); ctx.moveTo(x * tileSize, 0); ctx.lineTo(x * tileSize, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y <= gridH; y++) {
+        ctx.beginPath(); ctx.moveTo(0, y * tileSize); ctx.lineTo(canvas.width, y * tileSize); ctx.stroke();
+      }
+    }
+
+    function drawPreview() {
+      spellPreview.forEach(([x, y]) => {
+        ctx.fillStyle = spells[selectedSpell].color;
+        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+      });
+    }
+
+    function drawEffects() {
+      effects.forEach((p, i) => {
+        p.age++;
+        if (p.age > p.ttl) { effects.splice(i, 1); return; }
+        ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${1 - p.age / p.ttl})`;
+        ctx.beginPath();
+        ctx.arc(p.x * tileSize, p.y * tileSize, tileSize / 6, 0, Math.PI * 2);
+        ctx.fill();
+        p.x += p.vx; p.y += p.vy; p.vy += 0.01;
+      });
+    }
+
+    function drawFloatingNumbers() {
+      floatingNumbers.forEach((n, i) => {
+        n.age++;
+        if (n.age > n.ttl) { floatingNumbers.splice(i, 1); return; }
+        ctx.fillStyle = `rgba(255,255,255,${1 - n.age / n.ttl})`;
+        ctx.font = '20px sans-serif';
+        ctx.fillText(n.value, n.x * tileSize, n.y * tileSize - n.age);
+      });
+    }
+
+    function drawBattlefield() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawPreview();
+      drawEffects();
+      drawFloatingNumbers();
+    }
+
+    function loop() {
+      drawBattlefield();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
 </body>
+
 </html>

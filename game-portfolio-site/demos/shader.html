@@ -1,17 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8"/>
-<title>Matrix Skybox (WebGL2)</title>
-<style>
-  html, body { margin:0; height:100%; overflow:hidden; background:black; }
-  canvas { width:100%; height:100%; display:block; }
-</style>
+  <meta charset="utf-8" />
+  <title>Matrix Skybox (WebGL2)</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
 </head>
+
 <body>
-<canvas id="glcanvas"></canvas>
-<script type="module">
-const vsSource = `#version 300 es
+  <canvas id="glcanvas"></canvas>
+  <script type="module">
+    const vsSource = `#version 300 es
 precision highp float;
 in vec3 a_position;
 uniform mat4 u_view;
@@ -23,8 +36,8 @@ void main(){
   gl_Position = u_proj * vec4(rotPos.xyz, 1.0);
 }`;
 
-// --- fragment shader ---
-const fsSource = `#version 300 es
+    // --- fragment shader ---
+    const fsSource = `#version 300 es
 precision highp float;
 in vec3 v_dir;
 out vec4 fragColor;
@@ -91,123 +104,124 @@ void main(){
   fragColor=vec4(final,1.0);
 }`;
 
-// ---- JS setup ----
-const canvas = document.getElementById('glcanvas');
-const gl = canvas.getContext('webgl2');
-if(!gl){ alert('WebGL2 not supported'); }
+    // ---- JS setup ----
+    const canvas = document.getElementById('glcanvas');
+    const gl = canvas.getContext('webgl2');
+    if (!gl) { alert('WebGL2 not supported'); }
 
-function resize(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  gl.viewport(0,0,canvas.width,canvas.height);
-}
-window.addEventListener('resize',resize); resize();
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resize); resize();
 
-function compileShader(src, type){
-  const sh = gl.createShader(type);
-  gl.shaderSource(sh, src);
-  gl.compileShader(sh);
-  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
-    console.error(gl.getShaderInfoLog(sh));
-  }
-  return sh;
-}
-function createProgram(vsSrc, fsSrc){
-  const vs = compileShader(vsSrc, gl.VERTEX_SHADER);
-  const fs = compileShader(fsSrc, gl.FRAGMENT_SHADER);
-  const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
-    console.error(gl.getProgramInfoLog(prog));
-  }
-  return prog;
-}
-const program = createProgram(vsSource, fsSource);
-gl.useProgram(program);
+    function compileShader(src, type) {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(sh));
+      }
+      return sh;
+    }
+    function createProgram(vsSrc, fsSrc) {
+      const vs = compileShader(vsSrc, gl.VERTEX_SHADER);
+      const fs = compileShader(fsSrc, gl.FRAGMENT_SHADER);
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(prog));
+      }
+      return prog;
+    }
+    const program = createProgram(vsSource, fsSource);
+    gl.useProgram(program);
 
-const cubeVerts = new Float32Array([
-  -1,-1,-1, 1,-1,-1, 1,1,-1, -1,1,-1, // back
-  -1,-1, 1, 1,-1, 1, 1,1, 1, -1,1, 1  // front
-]);
-const cubeIdx = new Uint16Array([
-  0,1,2, 2,3,0,
-  4,5,6, 6,7,4,
-  0,4,7, 7,3,0,
-  1,5,6, 6,2,1,
-  3,2,6, 6,7,3,
-  0,1,5, 5,4,0
-]);
-const vao = gl.createVertexArray();
-gl.bindVertexArray(vao);
-const vbo = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER,vbo);
-gl.bufferData(gl.ARRAY_BUFFER,cubeVerts,gl.STATIC_DRAW);
-const aPos = gl.getAttribLocation(program,"a_position");
-gl.enableVertexAttribArray(aPos);
-gl.vertexAttribPointer(aPos,3,gl.FLOAT,false,0,0);
-const ibo = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,cubeIdx,gl.STATIC_DRAW);
+    const cubeVerts = new Float32Array([
+      -1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, // back
+      -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1  // front
+    ]);
+    const cubeIdx = new Uint16Array([
+      0, 1, 2, 2, 3, 0,
+      4, 5, 6, 6, 7, 4,
+      0, 4, 7, 7, 3, 0,
+      1, 5, 6, 6, 2, 1,
+      3, 2, 6, 6, 7, 3,
+      0, 1, 5, 5, 4, 0
+    ]);
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, cubeVerts, gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+    const ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cubeIdx, gl.STATIC_DRAW);
 
-// uniforms
-const uView = gl.getUniformLocation(program,"u_view");
-const uProj = gl.getUniformLocation(program,"u_proj");
-const uTime = gl.getUniformLocation(program,"u_time");
-const uRes = gl.getUniformLocation(program,"u_resolution");
+    // uniforms
+    const uView = gl.getUniformLocation(program, "u_view");
+    const uProj = gl.getUniformLocation(program, "u_proj");
+    const uTime = gl.getUniformLocation(program, "u_time");
+    const uRes = gl.getUniformLocation(program, "u_resolution");
 
-function perspective(fovy,aspect,near,far){
-  const f=1.0/Math.tan(fovy/2), nf=1/(near-far);
-  return new Float32Array([
-    f/aspect,0,0,0,
-    0,f,0,0,
-    0,0,(far+near)*nf,-1,
-    0,0,(2*far*near)*nf,0
-  ]);
-}
-function lookAt(eye,center,up){
-  const z = normalize(sub(eye,center));
-  const x = normalize(cross(up,z));
-  const y = cross(z,x);
-  return new Float32Array([
-    x[0],y[0],z[0],0,
-    x[1],y[1],z[1],0,
-    x[2],y[2],z[2],0,
-    0,0,0,1
-  ]);
-}
-function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
-function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
-function normalize(v){const l=Math.hypot(v[0],v[1],v[2]);return [v[0]/l,v[1]/l,v[2]/l];}
+    function perspective(fovy, aspect, near, far) {
+      const f = 1.0 / Math.tan(fovy / 2), nf = 1 / (near - far);
+      return new Float32Array([
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (far + near) * nf, -1,
+        0, 0, (2 * far * near) * nf, 0
+      ]);
+    }
+    function lookAt(eye, center, up) {
+      const z = normalize(sub(eye, center));
+      const x = normalize(cross(up, z));
+      const y = cross(z, x);
+      return new Float32Array([
+        x[0], y[0], z[0], 0,
+        x[1], y[1], z[1], 0,
+        x[2], y[2], z[2], 0,
+        0, 0, 0, 1
+      ]);
+    }
+    function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+    function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+    function normalize(v) { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }
 
-let start = performance.now();
-function render(){
-  const t = (performance.now()-start)/1000;
-  gl.clearColor(0,0,0,1);
-  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  gl.useProgram(program);
-  gl.bindVertexArray(vao);
-  const aspect = canvas.width/canvas.height;
-  const proj = perspective(60*Math.PI/180,aspect,0.1,100.0);
-  const eye = [0,0,0];
-  // rotate slowly around Y
-  const angle = t*0.1;
-  const view = lookAt(
-    [Math.sin(angle)*0.0,0,Math.cos(angle)*0.0],
-    [0,0,-1],
-    [0,1,0]
-  );
-  gl.uniformMatrix4fv(uView,false,view);
-  gl.uniformMatrix4fv(uProj,false,proj);
-  gl.uniform1f(uTime,t);
-  gl.uniform2f(uRes,canvas.width,canvas.height);
-  gl.drawElements(gl.TRIANGLES,cubeIdx.length,gl.UNSIGNED_SHORT,0);
-  requestAnimationFrame(render);
-}
-render();
-</script>
+    let start = performance.now();
+    function render() {
+      const t = (performance.now() - start) / 1000;
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.useProgram(program);
+      gl.bindVertexArray(vao);
+      const aspect = canvas.width / canvas.height;
+      const proj = perspective(60 * Math.PI / 180, aspect, 0.1, 100.0);
+      const eye = [0, 0, 0];
+      // rotate slowly around Y
+      const angle = t * 0.1;
+      const view = lookAt(
+        [Math.sin(angle) * 0.0, 0, Math.cos(angle) * 0.0],
+        [0, 0, -1],
+        [0, 1, 0]
+      );
+      gl.uniformMatrix4fv(uView, false, view);
+      gl.uniformMatrix4fv(uProj, false, proj);
+      gl.uniform1f(uTime, t);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.drawElements(gl.TRIANGLES, cubeIdx.length, gl.UNSIGNED_SHORT, 0);
+      requestAnimationFrame(render);
+    }
+    render();
+  </script>
 </body>
+
 </html>
