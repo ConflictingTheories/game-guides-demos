@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gacha RPG Battle Mechanics & Enhancements</title>
+  <link rel="stylesheet" href="./guide-style.css" />
+  <!-- Mermaid -->
+  <script src="/lib/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>Gacha RPG Battle Mechanics & Enhancements</h1>
+    <p class="note">Battle systems for gacha RPGs: <strong>auto-battle, team composition, stat enhancements</strong>. Focus on <strong>depth, strategy, and gacha integration</strong>.</p>
+
+    <div class="toc">
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
+      <div class="chip" data-section="battle">Battle Systems</div>
+      <div class="chip" data-section="enhancements">Enhancements</div>
+      <div class="chip" data-section="team">Team Comp</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Gacha Battle Mechanics</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Battle Flow:</strong> Select team → Auto-battle → Watch → Collect rewards. With <strong>enhancements, synergies, gacha units</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Select[Select Team] --> Auto[Auto-Battle]
+            Auto --> Watch[Watch/Idle]
+            Watch --> Reward[Collect Rewards]
+            Reward --> Enhance[Enhance Units]
+            classDef core fill:#300,stroke:#f69
+            class Select,Auto,Reward core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Key Features</h3>
+        <ul>
+          <li><strong>Auto-Battle:</strong> Hands-off combat</li>
+          <li><strong>Enhancements:</strong> Level up, gear, skills</li>
+          <li><strong>Synergies:</strong> Team bonuses</li>
+          <li><strong>Gacha Impact:</strong> Rare units change meta</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- BATTLE SYSTEMS -->
+  <section id="battle" class="section">
+    <h2>Battle Systems & Auto-Combat</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Auto-Battle Logic</h3>
+        <pre>struct Battle {
+  vector<Unit*> team;
+  vector<Unit*> enemies;
+  bool autoMode;
+};
+
+void updateBattle(Battle* b) {
+  if (b->autoMode) {
+    for (auto& u : b->team) {
+      if (u->cooldown <= 0) {
+        Unit* target = findTarget(u, b->enemies);
+        executeSkill(u, target);
+        u->cooldown = u->skillCooldown;
+      } else {
+        u->cooldown--;
+      }
+    }
+  }
+}</pre>
+        <div class="tip">AI: Simple priority targeting, skill rotation.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Update[Update Loop] --> Check[Check Cooldowns]
+            Check --> Target[Find Targets]
+            Target --> Skill[Execute Skills]
+            Skill --> Update
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENHANCEMENTS -->
+  <section id="enhancements" class="section">
+    <h2>Enhancements & Progression</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Stat Boosts & Levels</h3>
+        <pre>struct Enhancement {
+  int level;
+  int maxLevel; // 100
+  vector<StatBoost> boosts; // +10% ATK per level
+};
+
+void enhanceUnit(Unit* u, Enhancement* e) {
+  if (u->level < e->maxLevel) {
+    u->level++;
+    for (auto& b : e->boosts) {
+      u->stats[b.type] += b.value;
+    }
+  }
+}
+
+// Gear
+struct Gear {
+  string name;
+  map<Stat, int> bonuses;
+};</pre>
+        <div class="disgaea"><strong>Resources:</strong> EXP from battles, materials from gacha.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            sequenceDiagram
+            Battle[Battle Win]
+            Battle->>EXP: Gain EXP
+            EXP->>Level: Level Up
+            Level->>Stats: Boost Stats
+            Stats->>Stronger: Stronger Unit
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAM COMP -->
+  <section id="team" class="section">
+    <h2>Team Composition & Synergies</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Synergy Bonuses</h3>
+        <pre>struct Synergy {
+  Element element;
+  int count; // 3 fire units
+  StatBoost bonus; // +20% ATK
+};
+
+void applySynergies(Team* t) {
+  map<Element, int> counts;
+  for (auto& u : t->units) {
+    counts[u->element]++;
+  }
+  for (auto& s : synergies) {
+    if (counts[s.element] >= s.count) {
+      for (auto& u : t->units) {
+        if (u->element == s.element) {
+          u->stats += s.bonus;
+        }
+      }
+    }
+  }
+}</pre>
+        <div class="tip">Meta: Gacha pulls shift team comps.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+            Units[Units] --> Count[Count Elements]
+            Count --> Check[Check Synergies]
+            Check --> Bonus[Apply Bonuses]
+            Bonus --> Team[Stronger Team]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Design battles that showcase gacha units and encourage progression.</p>
+    <p>— Auto-battle with strategic depth.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+    });
+  </script>
+
+</body>
+
+</html>

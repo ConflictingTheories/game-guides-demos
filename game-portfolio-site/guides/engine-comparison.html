@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Unity vs C++ OpenGL vs Unreal vs WebGL</title>
+  <link rel="stylesheet" href="./guide-style.css" />
+  <!-- Mermaid -->
+  <script src="/lib/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>Unity vs C++ OpenGL vs Unreal vs WebGL</h1>
+    <p class="note">Engine comparisons: <strong>Unity for ease, C++ OpenGL for performance, Unreal for visuals, WebGL for web</strong>. Choose based on <strong>project needs, target platform</strong>.</p>
+
+    <div class="toc">
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
+      <div class="chip" data-section="unity">Unity</div>
+      <div class="chip" data-section="cpp">C++ OpenGL</div>
+      <div class="chip" data-section="unreal">Unreal</div>
+      <div class="chip" data-section="webgl">WebGL</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Game Engine Choices</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Decision Factors:</strong> Platform → Performance needs → Team size → Budget. With <strong>prototyping, deployment, community</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Platform[Target Platform] --> Engine[Choose Engine]
+            Engine --> Dev[Development]
+            Dev --> Deploy[Deployment]
+            classDef core fill:#300,stroke:#f69
+            class Platform,Engine,Dev core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Comparison Table</h3>
+        <table>
+          <tr><th>Engine</th><th>Pros</th><th>Cons</th><th>Use Case</th></tr>
+          <tr><td>Unity</td><td>Easy, Cross-platform</td><td>Performance</td><td>Mobile/Web</td></tr>
+          <tr><td>C++ OpenGL</td><td>Max Performance</td><td>Hard to code</td><td>AAA PC</td></tr>
+          <tr><td>Unreal</td><td>Visuals, Blueprints</td><td>Heavy, Royalty</td><td>Cinematic</td></tr>
+          <tr><td>WebGL</td><td>Web native</td><td>Limited features</td><td>Browser games</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- UNITY -->
+  <section id="unity" class="section">
+    <h2>Unity: Rapid Prototyping</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Scripting & Components</h3>
+        <pre>using UnityEngine;
+
+public class Player : MonoBehaviour {
+    public float speed = 5f;
+
+    void Update() {
+        transform.Translate(Input.GetAxis("Horizontal") * speed * Time.deltaTime, 0, 0);
+    }
+}</pre>
+        <div class="tip">Pros: C# scripting, asset store, multi-platform build.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Unity[Unity] --> C#[C# Scripts]
+            C# --> Components[GameObjects]
+            Components --> Build[Build to Platforms]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C++ OPENGL -->
+  <section id="cpp" class="section">
+    <h2>C++ OpenGL: High Performance</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Rendering Pipeline</h3>
+        <pre>#include <GL/glew.h>
+
+GLuint VAO, VBO;
+glGenVertexArrays(1, &VAO);
+glBindVertexArray(VAO);
+glGenBuffers(1, &VBO);
+glBindBuffer(GL_ARRAY_BUFFER, VBO);
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);</pre>
+        <div class="disgaea"><strong>Pros:</strong> Direct control, max FPS, custom engines.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Cpp[C++ Code] --> OpenGL[OpenGL Calls]
+            OpenGL --> GPU[GPU Rendering]
+            GPU --> Performance[High Performance]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UNREAL -->
+  <section id="unreal" class="section">
+    <h2>Unreal: Cinematic Quality</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Blueprints & C++</h3>
+        <pre>// Blueprint equivalent in C++
+class AMyActor : public AActor {
+    UPROPERTY(EditAnywhere)
+    float Speed;
+
+    void Tick(float DeltaTime) override {
+        AddActorWorldOffset(GetActorForwardVector() * Speed * DeltaTime);
+    }
+};</pre>
+        <div class="tip">Pros: Stunning visuals, physics, multiplayer.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Unreal[Unreal] --> Blueprints[Visual Scripting]
+            Blueprints --> Cpp[C++ for Performance]
+            Cpp --> Render[Advanced Rendering]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WEBGL -->
+  <section id="webgl" class="section">
+    <h2>WebGL: Browser Games</h2>
+    <div class="row">
+      <div class="col">
+        <h3>WebGL Context</h3>
+        <pre>const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl');
+
+const vertexShaderSource = `
+    attribute vec2 a_position;
+    void main() { gl_Position = vec4(a_position, 0, 1); }
+`;
+
+const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);</pre>
+        <div class="disgaea"><strong>Pros:</strong> No install, cross-device, JS integration.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            JS[JavaScript] --> WebGL[WebGL API]
+            WebGL --> Canvas[Canvas Element]
+            Canvas --> Browser[Browser Display]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Choose the engine that fits your project's scope and expertise.</p>
+    <p>— Prototype in Unity, optimize in C++, impress with Unreal, deploy on WebGL.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+    });
+  </script>
+
+</body>
+
+</html>

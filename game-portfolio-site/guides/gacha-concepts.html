@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gacha RPG Game Concepts & Tips</title>
+  <link rel="stylesheet" href="./guide-style.css" />
+  <!-- Mermaid -->
+  <script src="/lib/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>Gacha RPG Game Concepts & Tips</h1>
+    <p class="note">Core concepts for building engaging gacha RPGs: <strong>character design, monetization strategies, player engagement loops</strong>. Focus on <strong>balance, retention, and monetization</strong>.</p>
+
+    <div class="toc">
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
+      <div class="chip" data-section="character">Character Design</div>
+      <div class="chip" data-section="monetization">Monetization</div>
+      <div class="chip" data-section="engagement">Player Engagement</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Gacha RPG Fundamentals</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Core Loop:</strong> Pull characters → Build team → Battle → Earn currency → Pull more. With <strong>rarity tiers, pity systems, events</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Pull[Pull Characters] --> Team[Build Team]
+            Team --> Battle[Battle]
+            Battle --> Earn[Earn Currency]
+            Earn --> Pull
+            classDef core fill:#300,stroke:#f69
+            class Pull,Team,Battle core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Key Elements</h3>
+        <ul>
+          <li><strong>Rarity:</strong> Common, Rare, Epic, Legendary</li>
+          <li><strong>Pity:</strong> Guaranteed rare after X pulls</li>
+          <li><strong>Events:</strong> Limited-time banners, bonuses</li>
+          <li><strong>Progression:</strong> Levels, gear, story</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARACTER DESIGN -->
+  <section id="character" class="section">
+    <h2>Character Design & Balance</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Rarity Tiers & Stats</h3>
+        <pre>struct Character {
+  string name;
+  Rarity rarity; // 1=Common, 2=Rare, 3=Epic, 4=Legendary
+  int baseAtk, baseHp;
+  Element element;
+  Role role; // Tank, DPS, Support
+};
+
+Character* createChar(Rarity r) {
+  Character* c = new Character();
+  c->rarity = r;
+  c->baseAtk = 100 * (int)r;
+  c->baseHp = 500 * (int)r;
+  return c;
+}</pre>
+        <div class="tip">Balance: Epic should be 2x stronger than Rare, but not overpowered.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Rarity[Rarity Tier] --> Stats[Base Stats]
+            Rarity --> Art[Art Quality]
+            Rarity --> Skills[Skill Set]
+            Stats --> Balance[Game Balance]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MONETIZATION -->
+  <section id="monetization" class="section">
+    <h2>Monetization Strategies</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Pity & Currency Systems</h3>
+        <pre>struct Gacha {
+  int pityCounter;
+  int softPity; // 50 pulls
+  int hardPity; // 100 pulls
+  Currency gems, coins;
+};
+
+bool pull(Gacha* g) {
+  g->pityCounter++;
+  if (g->pityCounter >= g->hardPity) {
+    return true; // Guaranteed rare
+  }
+  // Probability increases at soft pity
+  float rate = baseRate + (g->pityCounter > g->softPity ? bonusRate : 0);
+  return random() < rate;
+}</pre>
+        <div class="disgaea"><strong>Revenue:</strong> Gems from IAP, free from events.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            sequenceDiagram
+            Pull[Player Pulls]
+            Pull->>Check: Check Pity
+            Check->>Rate: Adjust Rate
+            Rate->>Result: Rare or Not
+            Result->>Reset: Reset Counter if Rare
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYER ENGAGEMENT -->
+  <section id="engagement" class="section">
+    <h2>Player Engagement & Retention</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Daily Rewards & Events</h3>
+        <pre>struct DailyReward {
+  int day;
+  Currency reward;
+};
+
+void claimDaily(Player* p) {
+  if (p->lastClaim < today) {
+    p->currency += dailyRewards[p->streak % 30];
+    p->streak++;
+  }
+}
+
+struct Event {
+  string banner;
+  Character* featured;
+  float bonusRate;
+};</pre>
+        <div class="tip">Events: Limited banners increase pull rates for featured chars.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+            Daily[Daily Login] --> Reward[Rewards]
+            Reward --> Streak[Streak Bonus]
+            Streak --> Retention[Player Retention]
+            Events[Events] --> Pulls[More Pulls]
+            Pulls --> Retention
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Build engaging gacha RPGs with balanced mechanics and strong monetization.</p>
+    <p>— Keep players coming back with events and progression.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+    });
+  </script>
+
+</body>
+
+</html>

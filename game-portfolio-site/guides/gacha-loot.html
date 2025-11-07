@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gacha RPG Loot & Pity Systems</title>
+  <link rel="stylesheet" href="./guide-style.css" />
+  <!-- Mermaid -->
+  <script src="/lib/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>Gacha RPG Loot & Pity Systems</h1>
+    <p class="note">Master loot mechanics: <strong>rarity distributions, pity timers, balancing for fairness</strong>. Ensure <strong>player satisfaction and revenue</strong>.</p>
+
+    <div class="toc">
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
+      <div class="chip" data-section="loot">Loot Mechanics</div>
+      <div class="chip" data-section="pity">Pity Systems</div>
+      <div class="chip" data-section="balancing">Balancing</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Loot & Pity in Gacha</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Loot Loop:</strong> Pull → Get item → Check rarity → Pity counter updates. With <strong>soft/hard pity, rate-ups</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Pull[Pull] --> Item[Get Item]
+            Item --> Rarity[Check Rarity]
+            Rarity --> Pity[Update Pity]
+            Pity --> Pull
+            classDef core fill:#300,stroke:#f69
+            class Pull,Item,Rarity core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Key Components</h3>
+        <ul>
+          <li><strong>Rarity:</strong> 1-5 stars, different drop rates</li>
+          <li><strong>Pity:</strong> Soft (rate increase), Hard (guarantee)</li>
+          <li><strong>Rate-ups:</strong> Event banners boost specific items</li>
+          <li><strong>Balancing:</strong> Economy, player frustration</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOOT MECHANICS -->
+  <section id="loot" class="section">
+    <h2>Loot Mechanics & Rarity</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Rarity Distribution</h3>
+        <pre>struct LootTable {
+  map<Rarity, float> rates; // e.g., 1*: 50%, 2*: 30%, 3*: 15%, 4*: 4%, 5*: 1%
+  vector<Item*> pool;
+};
+
+Item* rollLoot(LootTable* lt) {
+  float rand = random(0, 1);
+  float cum = 0;
+  for (auto& pair : lt->rates) {
+    cum += pair.second;
+    if (rand <= cum) {
+      return lt->pool[pair.first][random(0, lt->pool[pair.first].size())];
+    }
+  }
+}</pre>
+        <div class="tip">Pools: Separate for characters, weapons, etc.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Roll[Roll] --> Rand[Random Number]
+            Rand --> Check[Check Cumulative]
+            Check --> Item[Select Item]
+            Item --> Return[Return Loot]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PITY SYSTEMS -->
+  <section id="pity" class="section">
+    <h2>Pity Systems: Soft & Hard</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Pity Implementation</h3>
+        <pre>struct PitySystem {
+  int counter;
+  int softPity; // 50 pulls
+  int hardPity; // 100 pulls
+  float baseRate; // 1%
+  float softRate; // 2%
+};
+
+Rarity pityRoll(PitySystem* ps) {
+  ps->counter++;
+  float rate = ps->baseRate;
+  if (ps->counter >= ps->softPity) {
+    rate = ps->softRate;
+  }
+  if (ps->counter >= ps->hardPity) {
+    return RARITY_5; // Guarantee
+  }
+  return random() < rate ? RARITY_5 : lowerRarity();
+}</pre>
+        <div class="disgaea"><strong>Soft Pity:</strong> Increases rate, Hard: Guarantees.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            sequenceDiagram
+            Pull[Pull Attempt]
+            Pull->>Inc: Increment Counter
+            Inc->>Check: Check Soft/Hard
+            Check->>Rate: Adjust Rate
+            Rate->>Roll: Roll Rarity
+            Roll->>Reset: Reset if 5*
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BALANCING -->
+  <section id="balancing" class="section">
+    <h2>Balancing Loot for Fairness</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Economy & Frustration</h3>
+        <pre>// Expected pulls for 5*
+float expectedPulls = 1 / baseRate; // ~100
+
+// With pity
+float effectiveRate = (softPity * baseRate + (hardPity - softPity) * softRate + 1) / hardPity;
+
+// Player satisfaction
+if (effectiveRate < 0.02) {
+  // Too slow, increase rates
+}</pre>
+        <div class="tip">Test: Simulate 1000 pulls, check distribution.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+            Rates[Drop Rates] --> Expected[Expected Pulls]
+            Expected --> Satisfaction[Satisfaction]
+            Pity[Pity System] --> Effective[Effective Rate]
+            Effective --> Satisfaction
+            Satisfaction --> Balance[Balance Adjust]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Design loot systems that reward persistence without frustration.</p>
+    <p>— Pity systems keep players engaged.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+    });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Unity Programming Guide Tips</title>
+  <link rel="stylesheet" href="./guide-style.css" />
+  <!-- Mermaid -->
+  <script src="/lib/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>Unity Programming Guide Tips</h1>
+    <p class="note">Unity best practices: <strong>C# scripting, performance optimization, architecture patterns</strong>. Master <strong>efficient coding, debugging, deployment</strong>.</p>
+
+    <div class="toc">
+      <div class="chip" data-section="all">Show All</div>
+      <div class="chip active" data-section="overview">Overview</div>
+      <div class="chip" data-section="scripting">Scripting</div>
+      <div class="chip" data-section="optimization">Optimization</div>
+      <div class="chip" data-section="best">Best Practices</div>
+      <div class="chip" data-section="advanced">Advanced Scripting</div>
+    </div>
+  </header>
+
+  <button id="show-all-btn">Show All Sections</button>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="section active">
+    <h2>Overview: Unity Development</h2>
+    <div class="row">
+      <div class="col">
+        <div class="disgaea"><strong>Workflow:</strong> Prototype → Script → Optimize → Test → Deploy. With <strong>components, prefabs, scenes</strong>.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Prototype[Prototype] --> Script[Script Logic]
+            Script --> Optimize[Optimize Performance]
+            Optimize --> Test[Test Builds]
+            Test --> Deploy[Deploy]
+            classDef core fill:#300,stroke:#f69
+            class Prototype,Script,Optimize core
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Key Areas</h3>
+        <ul>
+          <li><strong>Scripting:</strong> C# best practices</li>
+          <li><strong>Performance:</strong> Profiling, batching</li>
+          <li><strong>Architecture:</strong> MVC, ECS</li>
+          <li><strong>Tools:</strong> Editor scripts, debugging</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCRIPTING -->
+  <section id="scripting" class="section">
+    <h2>Scripting Best Practices</h2>
+    <div class="row">
+      <div class="col">
+        <h3>MonoBehaviour Lifecycle</h3>
+        <pre>using UnityEngine;
+
+public class PlayerController : MonoBehaviour {
+    void Awake() { // Init before Start
+        Debug.Log("Awake");
+    }
+
+    void Start() { // Init after Awake
+        // Setup
+    }
+
+    void Update() { // Per frame
+        // Input handling
+    }
+
+    void FixedUpdate() { // Physics
+        // Movement
+    }
+
+    void OnDestroy() { // Cleanup
+        // Dispose resources
+    }
+}</pre>
+        <div class="tip">Avoid expensive operations in Update; use coroutines for async.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Awake[Awake] --> Start[Start]
+            Start --> Update[Update Loop]
+            Update --> Fixed[FixedUpdate]
+            Update --> OnDestroy[OnDestroy]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPTIMIZATION -->
+  <section id="optimization" class="section">
+    <h2>Performance Optimization</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Draw Calls & Batching</h3>
+        <pre>// Static batching
+GameObject go = Instantiate(prefab);
+go.isStatic = true; // Mark for batching
+
+// Dynamic batching
+// Keep under 300 verts per mesh
+
+// GPU Instancing
+Material mat = renderer.material;
+mat.enableInstancing = true;</pre>
+        <div class="disgaea"><strong>Profiler:</strong> Use Window > Analysis > Profiler to identify bottlenecks.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Profiler[Profiler] --> Bottleneck[Find Bottleneck]
+            Bottleneck --> Optimize[Optimize Code]
+            Optimize --> Test[Test Performance]
+            Test --> Repeat[Repeat]
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BEST PRACTICES -->
+  <section id="best" class="section">
+    <h2>Best Practices & Patterns</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Object Pooling</h3>
+        <pre>public class ObjectPool<T> where T : MonoBehaviour {
+    private Queue<T> pool = new Queue<T>();
+    private T prefab;
+
+    public ObjectPool(T prefab, int initialSize) {
+        this.prefab = prefab;
+        for (int i = 0; i < initialSize; i++) {
+            T obj = Object.Instantiate(prefab);
+            obj.gameObject.SetActive(false);
+            pool.Enqueue(obj);
+        }
+    }
+
+    public T Get() {
+        if (pool.Count > 0) {
+            T obj = pool.Dequeue();
+            obj.gameObject.SetActive(true);
+            return obj;
+        }
+        return Object.Instantiate(prefab);
+    }
+
+    public void Return(T obj) {
+        obj.gameObject.SetActive(false);
+        pool.Enqueue(obj);
+    }
+}</pre>
+        <div class="tip">Use for bullets, enemies to avoid GC spikes.</div>
+      </div>
+      <div class="col">
+        <div class="diagram">
+          <div class="mermaid">
+            graph LR
+            Pool[Object Pool] --> Get[Get Object]
+            Get --> Use[Use Object]
+            Use --> Return[Return to Pool]
+            Return --> Pool
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADVANCED SCRIPTING -->
+  <section id="advanced" class="section">
+    <h2>Advanced Scripting & Case Studies</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Custom Editor Scripts</h3>
+        <pre>using UnityEditor;
+
+[CustomEditor(typeof(PlayerController))]
+public class PlayerControllerEditor : Editor {
+    public override void OnInspectorGUI() {
+        PlayerController pc = (PlayerController)target;
+        DrawDefaultInspector();
+
+        if (GUILayout.Button("Reset Position")) {
+            pc.transform.position = Vector3.zero;
+        }
+    }
+}</pre>
+        <div class="disgaea"><strong>Case Study:</strong> In a 2D platformer, custom editors for level design reduced iteration time by 50%.</div>
+      </div>
+      <div class="col">
+        <h3>Scriptable Objects for Data</h3>
+        <pre>[CreateAssetMenu(fileName = "WeaponData", menuName = "Data/Weapon")]
+public class WeaponData : ScriptableObject {
+    public string name;
+    public int damage;
+    public float fireRate;
+    public GameObject projectilePrefab;
+}</pre>
+        <div class="tip">Modular data: Change weapon stats without code edits.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            SO[ScriptableObject] --> Data[Weapon Data]
+            Data --> Player[Player Uses]
+            Player --> Balance[Easy Balancing]
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <h3>Event-Driven Architecture</h3>
+        <pre>public static class GameEvents {
+    public static Action<int> OnScoreChanged;
+    public static Action OnGameOver;
+}
+
+public class ScoreManager : MonoBehaviour {
+    private int score;
+
+    public void AddScore(int points) {
+        score += points;
+        GameEvents.OnScoreChanged?.Invoke(score);
+    }
+}</pre>
+        <div class="disgaea"><strong>Case Study:</strong> In an RPG, event system decoupled UI from logic, allowing easy feature additions.</div>
+      </div>
+      <div class="col">
+        <h3>Coroutine for Async Tasks</h3>
+        <pre>IEnumerator LoadSceneAsync(string sceneName) {
+    AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
+    asyncLoad.allowSceneActivation = false;
+
+    while (!asyncLoad.isDone) {
+        float progress = Mathf.Clamp01(asyncLoad.progress / 0.9f);
+        // Update loading bar
+        if (asyncLoad.progress >= 0.9f) {
+            yield return new WaitForSeconds(1f);
+            asyncLoad.allowSceneActivation = true;
+        }
+        yield return null;
+    }
+}</pre>
+        <div class="tip">Smooth loading screens without blocking main thread.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Write efficient, maintainable Unity code.</p>
+    <p>— Profile early, optimize often.</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const chips = document.querySelectorAll('.chip');
+      const sections = document.querySelectorAll('.section');
+      const showAllBtn = document.getElementById('show-all-btn');
+
+      function showSection(id) {
+        sections.forEach(sec => sec.classList.toggle('active', id === 'all' || sec.id === id));
+        chips.forEach(chip => chip.classList.toggle('active', chip.dataset.section === id || id === 'all'));
+      }
+
+      chips.forEach(chip => chip.addEventListener('click', () => showSection(chip.dataset.section)));
+      showAllBtn.addEventListener('click', () => showSection('all'));
+    });
+  </script>
+
+</body>
+
+</html>

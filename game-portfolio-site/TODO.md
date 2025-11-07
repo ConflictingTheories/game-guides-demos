@@ -1,0 +1,7 @@
+- [x] Create guides/gacha-concepts.html with structure copied from disagea-guide.html, title "Gacha RPG Game Concepts & Tips", TOC chips for Overview, Character Design, Monetization, Player Engagement, and relevant sections content.
+- [x] Create guides/gacha-loot.html with title "Gacha RPG Loot & Pity Systems", TOC for Overview, Loot Mechanics, Pity Systems, Balancing, content on loot systems.
+- [x] Create guides/gacha-battle.html with title "Gacha RPG Battle Mechanics & Enhancements", TOC for Overview, Battle Systems, Enhancements, Team Comp, content on battle mechanics.
+- [x] Create guides/engine-comparison.html with title "Unity vs C++ OpenGL vs Unreal vs WebGL", TOC for Overview, Unity, C++ OpenGL, Unreal, WebGL, content comparing engines.
+- [x] Create guides/unity-tips.html with title "Unity Programming Guide Tips", TOC for Overview, Scripting, Optimization, Best Practices, content on Unity tips.
+- [x] Update site-components/GuidesSection.js to add 5 new demo-item divs at the end of demo-list.
+- [x] Run site locally to verify guides load correctly.
