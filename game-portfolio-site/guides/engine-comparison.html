@@ -30,6 +30,7 @@
       <div class="chip" data-section="cpp">C++ OpenGL</div>
       <div class="chip" data-section="unreal">Unreal</div>
       <div class="chip" data-section="webgl">WebGL</div>
+      <div class="chip" data-section="studies">Case Studies</div>
     </div>
   </header>
 
@@ -180,6 +181,51 @@ const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);</pr
             Canvas --> Browser[Browser Display]
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASE STUDIES -->
+  <section id="studies" class="section">
+    <h2>Case Studies: Engine Selection & Performance</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Unity Mobile Game Success</h3>
+        <p><strong>Project:</strong> 2D platformer with 100 levels.</p>
+        <p><strong>Choice:</strong> Unity for cross-platform (iOS/Android), asset store integration.</p>
+        <p><strong>Results:</strong> Development time 6 months, 5M downloads, 60fps on mid-range devices.</p>
+        <div class="tip">Unity excels for mobile: easy deployment, large community support.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: C++ OpenGL AAA Indie</h3>
+        <p><strong>Project:</strong> Custom engine voxel game.</p>
+        <p><strong>Choice:</strong> C++ OpenGL for max performance, custom rendering pipeline.</p>
+        <p><strong>Results:</strong> 120fps on high-end PC, 2M sales on Steam, praised for graphics.</p>
+        <div class="disgaea"><strong>Challenge:</strong> Long dev time (2 years); solution: modular engine design.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Custom[Custom Engine] --> Performance[High Performance]
+            Performance --> Graphics[Stunning Graphics]
+            Graphics --> Sales[Commercial Success]
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Unreal Cinematic Experience</h3>
+        <p><strong>Project:</strong> Narrative-driven adventure.</p>
+        <p><strong>Choice:</strong> Unreal for Blueprints (non-programmers), advanced lighting, cinematics.</p>
+        <p><strong>Results:</strong> Released in 8 months, won awards for visuals, 500K sales.</p>
+        <div class="tip">Unreal for visuals: Lumen GI, Niagara particles make scenes pop.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: WebGL Browser Game</h3>
+        <p><strong>Project:</strong> Multiplayer strategy game.</p>
+        <p><strong>Choice:</strong> WebGL (via Three.js) for zero-install, cross-device play.</p>
+        <p><strong>Results:</strong> 1M monthly players, viral on social media, low server costs.</p>
+        <div class="disgaea"><strong>Lesson:</strong> WebGL reaches casual players, but optimize for 30fps target.</div>
       </div>
     </div>
   </section>

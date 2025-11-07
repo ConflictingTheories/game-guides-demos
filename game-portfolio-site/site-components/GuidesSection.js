@@ -42,27 +42,27 @@ class GuidesSection {
             </div>
             <div class="demo-item">
                 <h3>Gacha RPG Game Concepts & Tips</h3>
-                <p>Core concepts for building engaging gacha RPGs.</p>
+                <p>Learn core concepts for building engaging gacha RPGs.</p>
                 <a href="guides/gacha-concepts.html">View Guide</a>
             </div>
             <div class="demo-item">
                 <h3>Gacha RPG Loot & Pity Systems</h3>
-                <p>Master loot mechanics and pity systems.</p>
+                <p>Master loot mechanics and pity systems for fairness.</p>
                 <a href="guides/gacha-loot.html">View Guide</a>
             </div>
             <div class="demo-item">
                 <h3>Gacha RPG Battle Mechanics & Enhancements</h3>
-                <p>Battle systems and enhancements for gacha RPGs.</p>
+                <p>Design battle systems that showcase gacha units.</p>
                 <a href="guides/gacha-battle.html">View Guide</a>
             </div>
             <div class="demo-item">
                 <h3>Unity vs C++ OpenGL vs Unreal vs WebGL</h3>
-                <p>Compare game engines for different projects.</p>
+                <p>Compare game engines for different project needs.</p>
                 <a href="guides/engine-comparison.html">View Guide</a>
             </div>
             <div class="demo-item">
                 <h3>Unity Programming Guide Tips</h3>
-                <p>Best practices for Unity development.</p>
+                <p>Advanced scripting and optimization tips for Unity.</p>
                 <a href="guides/unity-tips.html">View Guide</a>
             </div>
             </div>

@@ -21,7 +21,8 @@
 <body>
   <header>
     <h1>Gacha RPG Game Concepts & Tips</h1>
-    <p class="note">Core concepts for building engaging gacha RPGs: <strong>character design, monetization strategies, player engagement loops</strong>. Focus on <strong>balance, retention, and monetization</strong>.</p>
+    <p class="note">Core concepts for building engaging gacha RPGs: <strong>character design, monetization strategies,
+        player engagement loops</strong>. Focus on <strong>balance, retention, and monetization</strong>.</p>
 
     <div class="toc">
       <div class="chip" data-section="all">Show All</div>
@@ -29,6 +30,7 @@
       <div class="chip" data-section="character">Character Design</div>
       <div class="chip" data-section="monetization">Monetization</div>
       <div class="chip" data-section="engagement">Player Engagement</div>
+      <div class="chip" data-section="studies">Case Studies</div>
     </div>
   </header>
 
@@ -39,7 +41,8 @@
     <h2>Overview: Gacha RPG Fundamentals</h2>
     <div class="row">
       <div class="col">
-        <div class="disgaea"><strong>Core Loop:</strong> Pull characters → Build team → Battle → Earn currency → Pull more. With <strong>rarity tiers, pity systems, events</strong>.</div>
+        <div class="disgaea"><strong>Core Loop:</strong> Pull characters → Build team → Battle → Earn currency → Pull
+          more. With <strong>rarity tiers, pity systems, events</strong>.</div>
         <div class="diagram">
           <div class="mermaid">
             graph TD
@@ -176,6 +179,51 @@ struct Event {
             Pulls --> Retention
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASE STUDIES -->
+  <section id="studies" class="section">
+    <h2>Case Studies: Successful Gacha RPGs</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Mobile Gacha Success</h3>
+        <p><strong>Game:</strong> Fantasy RPG with 100+ characters.</p>
+        <p><strong>Concepts Applied:</strong> Rarity tiers (1-5*), pity system (soft 50, hard 100), daily logins with free pulls.</p>
+        <p><strong>Results:</strong> 10M downloads, 40% retention after 30 days. Monetization: $5M/month from IAP.</p>
+        <div class="tip">Key: Balanced pity to avoid frustration, events every 2 weeks.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: Cross-Platform Gacha</h3>
+        <p><strong>Game:</strong> Multi-platform RPG with web/mobile/PC.</p>
+        <p><strong>Concepts Applied:</strong> Shared account, progressive unlocks, community events, anti-bot measures.</p>
+        <p><strong>Results:</strong> 50M users, $20M/month revenue. Retention 60% at 90 days.</p>
+        <div class="disgaea"><strong>Challenge:</strong> Preventing multi-account abuse; solution: device fingerprinting + email verification.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Shared[Shared Account] --> Cross[Cross-Platform]
+            Cross --> Community[Community Events]
+            Community --> Retention[High Retention]
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Monetization Optimization</h3>
+        <p><strong>Game:</strong> Turn-based strategy gacha.</p>
+        <p><strong>Concepts Applied:</strong> Battle pass, premium currency shop, limited-time offers.</p>
+        <p><strong>Results:</strong> ARPU increased 25%, from $2.50 to $3.13/month.</p>
+        <div class="tip">Offer value: Free pulls for watching ads, discounted bundles.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: Live Service Evolution</h3>
+        <p><strong>Game:</strong> 5-year old gacha RPG.</p>
+        <p><strong>Concepts Applied:</strong> Regular content updates, player feedback integration, meta shifts via new characters.</p>
+        <p><strong>Results:</strong> Sustained 2M DAU, revenue stable at $10M/month. Survived market saturation.</p>
+        <div class="disgaea"><strong>Lesson:</strong> Listen to community, iterate on mechanics, keep content fresh.</div>
       </div>
     </div>
   </section>

@@ -29,6 +29,7 @@
       <div class="chip" data-section="loot">Loot Mechanics</div>
       <div class="chip" data-section="pity">Pity Systems</div>
       <div class="chip" data-section="balancing">Balancing</div>
+      <div class="chip" data-section="studies">Case Studies</div>
     </div>
   </header>
 
@@ -173,6 +174,52 @@ if (effectiveRate < 0.02) {
             Satisfaction --> Balance[Balance Adjust]
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASE STUDIES -->
+  <section id="studies" class="section">
+    <h2>Case Studies: Loot System Implementations</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Standard Pity Implementation</h3>
+        <p><strong>Game:</strong> Mobile RPG with 200 characters.</p>
+        <p><strong>Mechanics:</strong> 5% base rate, soft pity at 50 pulls (8%), hard pity at 100. Separate pools for characters/weapons.</p>
+        <p><strong>Results:</strong> Average pulls for 5*: 85. Player satisfaction 85%, reduced rage quits.</p>
+        <div class="tip">Communicate pity progress clearly to build anticipation.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: Dynamic Pity & Rate-ups</h3>
+        <p><strong>Game:</strong> Cross-platform gacha with events.</p>
+        <p><strong>Mechanics:</strong> Base 2%, soft 50 (4%), hard 100. Rate-ups to 10% for featured, pity resets per banner.</p>
+        <p><strong>Results:</strong> Event revenue 3x normal, retention during events 50% higher.</p>
+        <div class="disgaea"><strong>Challenge:</strong> Banner fatigue; solution: Rotate themes, limited-time exclusives.</div>
+        <div class="diagram">
+          <div class="mermaid">
+            graph TD
+            Banner[New Banner] --> RateUp[Rate Up Featured]
+            RateUp --> Pulls[Increased Pulls]
+            Pulls --> Revenue[Revenue Spike]
+            Revenue --> Retention[Higher Retention]
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <h3>Intermediate: Loot Balancing for Fairness</h3>
+        <p><strong>Game:</strong> Strategy gacha with team comp.</p>
+        <p><strong>Mechanics:</strong> Adjusted rates based on meta: underused roles get 2x rate temporarily.</p>
+        <p><strong>Results:</strong> Team diversity increased 40%, player engagement up 20%.</p>
+        <div class="tip">Monitor drop data weekly, adjust rates to prevent power creep.</div>
+      </div>
+      <div class="col">
+        <h3>Advanced: Anti-Bot & Fair Play Systems</h3>
+        <p><strong>Game:</strong> High-revenue gacha with bot issues.</p>
+        <p><strong>Mechanics:</strong> IP rate limiting, captcha on high pulls, account verification for big spenders.</p>
+        <p><strong>Results:</strong> Bot activity reduced 90%, legitimate revenue stable, trust improved.</p>
+        <div class="disgaea"><strong>Lesson:</strong> Fair systems build long-term player base over short-term exploits.</div>
       </div>
     </div>
   </section>
